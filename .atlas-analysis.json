@@ -1,0 +1,97 @@
+{
+  "projectType": "saas",
+  "projectName": "Simple Invoice",
+  "projectDescription": "A web-based invoice management system for businesses to manage clients, products, and generate professional invoices",
+  "theme": "almond",
+  "primaryColor": "#089ddb",
+  "lightColor": "#c1cac6",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/user-management",
+              "features/client-management",
+              "features/product-management",
+              "features/invoice-creation",
+              "features/invoice-pdf"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/database",
+              "configuration/company-profile",
+              "configuration/currency"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/production"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "AJAX Endpoints",
+            "pages": [
+              "api/clients",
+              "api/products",
+              "api/invoices",
+              "api/users"
+            ]
+          },
+          {
+            "group": "Database Schema",
+            "pages": [
+              "api/database-schema"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "User authentication and management",
+    "Client database management",
+    "Product catalog management",
+    "Invoice creation and editing",
+    "PDF invoice generation",
+    "Multi-currency support",
+    "Company profile customization"
+  ],
+  "publicApiSurface": [
+    "POST /ajax/nuevo_cliente.php",
+    "POST /ajax/editar_cliente.php",
+    "GET /ajax/buscar_clientes.php",
+    "POST /ajax/nuevo_producto.php",
+    "POST /ajax/editar_producto.php",
+    "GET /ajax/buscar_productos.php",
+    "POST /ajax/agregar_facturacion.php",
+    "POST /ajax/editar_factura.php",
+    "GET /ajax/buscar_facturas.php",
+    "POST /ajax/nuevo_usuario.php",
+    "POST /ajax/editar_usuario.php",
+    "GET /pdf/documentos/factura_pdf.php",
+    "Login::doLoginWithPostData()",
+    "Login::doLogout()",
+    "Login::isUserLoggedIn()"
+  ]
+}
