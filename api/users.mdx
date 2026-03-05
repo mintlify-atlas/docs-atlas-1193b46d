@@ -1,0 +1,403 @@
+---
+title: Users API
+description: API endpoints for managing users in Simple Invoice
+---
+
+## Overview
+
+The Users API provides endpoints for creating, updating, searching, and deleting user accounts. All endpoints require authentication via session. Password hashing uses PHP's `password_hash()` function with `PASSWORD_DEFAULT`.
+
+## Create User
+
+<RequestExample>
+
+```bash cURL
+curl -X POST https://your-domain.com/ajax/nuevo_usuario.php \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Cookie: PHPSESSID=your-session-id" \
+  -d "firstname=John" \
+  -d "lastname=Doe" \
+  -d "user_name=johndoe" \
+  -d "user_email=john@example.com" \
+  -d "user_password_new=SecurePass123" \
+  -d "user_password_repeat=SecurePass123"
+```
+
+```php PHP
+<?php
+$data = [
+    'firstname' => 'John',
+    'lastname' => 'Doe',
+    'user_name' => 'johndoe',
+    'user_email' => 'john@example.com',
+    'user_password_new' => 'SecurePass123',
+    'user_password_repeat' => 'SecurePass123'
+];
+
+$ch = curl_init('https://your-domain.com/ajax/nuevo_usuario.php');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField body="firstname" type="string" required>
+  User's first name (up to 20 characters)
+</ParamField>
+
+<ParamField body="lastname" type="string" required>
+  User's last name (up to 20 characters)
+</ParamField>
+
+<ParamField body="user_name" type="string" required>
+  Username (2-64 alphanumeric characters, must be unique)
+</ParamField>
+
+<ParamField body="user_email" type="string" required>
+  User's email address (up to 64 characters, must be unique and valid format)
+</ParamField>
+
+<ParamField body="user_password_new" type="string" required>
+  New password (minimum 6 characters)
+</ParamField>
+
+<ParamField body="user_password_repeat" type="string" required>
+  Password confirmation (must match `user_password_new`)
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns HTML alert with message: "La cuenta ha sido creada con éxito."
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns HTML alert with error message if:
+  - Any required field is empty
+  - Password is less than 6 characters
+  - Passwords don't match
+  - Username is not 2-64 alphanumeric characters
+  - Email format is invalid
+  - Username or email already exists in the system
+</ResponseField>
+
+<Note>
+  Requires PHP 5.5.0+ or uses password compatibility library for older PHP versions. Passwords are hashed using `password_hash()` before storage.
+</Note>
+
+---
+
+## Update User
+
+<RequestExample>
+
+```bash cURL
+curl -X POST https://your-domain.com/ajax/editar_usuario.php \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Cookie: PHPSESSID=your-session-id" \
+  -d "mod_id=5" \
+  -d "firstname2=John" \
+  -d "lastname2=Smith" \
+  -d "user_name2=johnsmith" \
+  -d "user_email2=john.smith@example.com"
+```
+
+```php PHP
+<?php
+$data = [
+    'mod_id' => 5,
+    'firstname2' => 'John',
+    'lastname2' => 'Smith',
+    'user_name2' => 'johnsmith',
+    'user_email2' => 'john.smith@example.com'
+];
+
+$ch = curl_init('https://your-domain.com/ajax/editar_usuario.php');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField body="mod_id" type="integer" required>
+  User ID to update
+</ParamField>
+
+<ParamField body="firstname2" type="string" required>
+  Updated first name
+</ParamField>
+
+<ParamField body="lastname2" type="string" required>
+  Updated last name
+</ParamField>
+
+<ParamField body="user_name2" type="string" required>
+  Updated username (2-64 alphanumeric characters)
+</ParamField>
+
+<ParamField body="user_email2" type="string" required>
+  Updated email address (valid email format, up to 64 characters)
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns HTML alert with message: "La cuenta ha sido modificada con éxito."
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns HTML alert with error message if validation fails
+</ResponseField>
+
+<Note>
+  This endpoint does NOT update the password. Use the "Update Password" endpoint to change passwords.
+</Note>
+
+---
+
+## Update Password
+
+<RequestExample>
+
+```bash cURL
+curl -X POST https://your-domain.com/ajax/editar_password.php \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Cookie: PHPSESSID=your-session-id" \
+  -d "user_id_mod=5" \
+  -d "user_password_new3=NewSecurePass456" \
+  -d "user_password_repeat3=NewSecurePass456"
+```
+
+```php PHP
+<?php
+$data = [
+    'user_id_mod' => 5,
+    'user_password_new3' => 'NewSecurePass456',
+    'user_password_repeat3' => 'NewSecurePass456'
+];
+
+$ch = curl_init('https://your-domain.com/ajax/editar_password.php');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField body="user_id_mod" type="integer" required>
+  User ID whose password will be updated
+</ParamField>
+
+<ParamField body="user_password_new3" type="string" required>
+  New password
+</ParamField>
+
+<ParamField body="user_password_repeat3" type="string" required>
+  Password confirmation (must match `user_password_new3`)
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns HTML alert with message: "contraseña ha sido modificada con éxito."
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns HTML alert with error message if:
+  - User ID is empty
+  - Password fields are empty
+  - Passwords don't match
+</ResponseField>
+
+<Note>
+  The password is hashed using `password_hash()` with `PASSWORD_DEFAULT` before being stored in the database.
+</Note>
+
+---
+
+## Update Profile Settings
+
+<RequestExample>
+
+```bash cURL
+curl -X POST https://your-domain.com/ajax/editar_perfil.php \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Cookie: PHPSESSID=your-session-id" \
+  -d "nombre_empresa=Acme Corporation" \
+  -d "telefono=555-0123" \
+  -d "email=info@acme.com" \
+  -d "impuesto=13" \
+  -d "moneda=$" \
+  -d "direccion=123 Main St" \
+  -d "ciudad=New York" \
+  -d "estado=NY" \
+  -d "codigo_postal=10001"
+```
+
+```php PHP
+<?php
+$data = [
+    'nombre_empresa' => 'Acme Corporation',
+    'telefono' => '555-0123',
+    'email' => 'info@acme.com',
+    'impuesto' => 13,
+    'moneda' => '$',
+    'direccion' => '123 Main St',
+    'ciudad' => 'New York',
+    'estado' => 'NY',
+    'codigo_postal' => '10001'
+];
+
+$ch = curl_init('https://your-domain.com/ajax/editar_perfil.php');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField body="nombre_empresa" type="string" required>
+  Company name (up to 150 characters)
+</ParamField>
+
+<ParamField body="telefono" type="string" required>
+  Company phone number (up to 20 characters)
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Company email address (up to 64 characters)
+</ParamField>
+
+<ParamField body="impuesto" type="integer" required>
+  Tax/IVA percentage (e.g., 13 for 13%)
+</ParamField>
+
+<ParamField body="moneda" type="string" required>
+  Currency symbol (up to 6 characters, e.g., "$", "€")
+</ParamField>
+
+<ParamField body="direccion" type="string" required>
+  Company address (up to 255 characters)
+</ParamField>
+
+<ParamField body="ciudad" type="string" required>
+  City (up to 100 characters)
+</ParamField>
+
+<ParamField body="estado" type="string">
+  State/province (up to 100 characters)
+</ParamField>
+
+<ParamField body="codigo_postal" type="string">
+  Postal/ZIP code (up to 100 characters)
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns HTML alert with message: "Datos han sido actualizados satisfactoriamente."
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns HTML alert with error message if any required field is empty
+</ResponseField>
+
+<Note>
+  This endpoint updates the company profile settings (stored in the `perfil` table with `id_perfil=1`). These settings are used system-wide for invoice generation and display.
+</Note>
+
+---
+
+## Search Users
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/ajax/buscar_usuarios.php?action=ajax&q=john&page=1" \
+  -H "Cookie: PHPSESSID=your-session-id"
+```
+
+```php PHP
+<?php
+$query = http_build_query([
+    'action' => 'ajax',
+    'q' => 'john',
+    'page' => 1
+]);
+
+$ch = curl_init('https://your-domain.com/ajax/buscar_usuarios.php?' . $query);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField query="action" type="string" required>
+  Must be set to `"ajax"` to trigger search
+</ParamField>
+
+<ParamField query="q" type="string">
+  Search term to filter users by first name or last name. Leave empty to return all users.
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination (default: 1, 10 results per page)
+</ParamField>
+
+<ResponseField name="html_table" type="html">
+  Returns HTML table with user data including:
+  - `user_id` - User ID
+  - `firstname` + `lastname` - Full name
+  - `user_name` - Username
+  - `user_email` - Email address
+  - `date_added` - Date added (formatted as d/m/Y)
+  - Action buttons for edit, change password, and delete
+</ResponseField>
+
+---
+
+## Delete User
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/ajax/buscar_usuarios.php?id=5" \
+  -H "Cookie: PHPSESSID=your-session-id"
+```
+
+```php PHP
+<?php
+$ch = curl_init('https://your-domain.com/ajax/buscar_usuarios.php?id=5');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField query="id" type="integer" required>
+  User ID to delete
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns success alert if user is deleted successfully
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns error alert if:
+  - Attempting to delete user ID 1 (admin user)
+  - Database error occurs
+</ResponseField>
+
+<Warning>
+  The admin user (user_id = 1) cannot be deleted and will return an error if deletion is attempted.
+</Warning>

@@ -1,0 +1,270 @@
+---
+title: Docker Deployment
+description: Deploy Simple Invoice using Docker containers
+---
+
+## Overview
+
+Simple Invoice includes a Dockerfile that packages the application with PHP 5.6.29 on a Debian-based image. This guide covers building and running the application in a containerized environment.
+
+## Prerequisites
+
+- Docker installed on your system
+- Docker Machine (optional, for non-Linux systems)
+- Database server (MySQL/MariaDB)
+
+## Dockerfile Configuration
+
+The application uses the following base configuration:
+
+```dockerfile
+FROM gcr.io/stacksmith-images/minideb-buildpack:jessie-r7
+
+ENV STACKSMITH_STACK_ID="zgv4q78" \
+    STACKSMITH_STACK_NAME="PHP for joaquinobed/simple-invoice" \
+    STACKSMITH_STACK_PRIVATE="1"
+
+ENV PATH=/opt/bitnami/php/bin:$PATH
+```
+
+### Installed Components
+
+- **Base Image**: Debian Jessie (minideb-buildpack)
+- **PHP Version**: 5.6.29
+- **Runtime**: Bitnami PHP stack
+
+## Building the Docker Image
+
+<Steps>
+  <Step title="Navigate to project directory">
+    ```bash
+    cd /path/to/simple-invoice
+    ```
+  </Step>
+
+  <Step title="Build the image">
+    ```bash
+    docker build -t php-simple-invoice .
+    ```
+    
+    This creates an image tagged as `php-simple-invoice` using the Dockerfile in the project root.
+  </Step>
+
+  <Step title="Verify the image">
+    ```bash
+    docker images | grep php-simple-invoice
+    ```
+  </Step>
+</Steps>
+
+## Running the Container
+
+### Basic Run Command
+
+```bash
+docker run -p 9000:9000 php-simple-invoice
+```
+
+### Production Configuration
+
+For a production deployment, you'll need to:
+
+<Steps>
+  <Step title="Create a Docker network">
+    ```bash
+    docker network create invoice-network
+    ```
+  </Step>
+
+  <Step title="Run MySQL container">
+    ```bash
+    docker run -d \
+      --name invoice-mysql \
+      --network invoice-network \
+      -e MYSQL_ROOT_PASSWORD=your_secure_password \
+      -e MYSQL_DATABASE=simple_invoice \
+      -e MYSQL_USER=invoice_user \
+      -e MYSQL_PASSWORD=secure_password \
+      -v invoice-data:/var/lib/mysql \
+      mysql:5.7
+    ```
+  </Step>
+
+  <Step title="Run the application container">
+    ```bash
+    docker run -d \
+      --name simple-invoice \
+      --network invoice-network \
+      -p 80:80 \
+      -v $(pwd):/app \
+      -v invoice-uploads:/app/img \
+      php-simple-invoice
+    ```
+  </Step>
+</Steps>
+
+## Environment Variables
+
+Configure the following environment variables for your deployment:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_HOST` | `localhost` | Database host (use container name in Docker network) |
+| `DB_USER` | `root` | Database username |
+| `DB_PASS` | (empty) | Database password |
+| `DB_NAME` | `simple_invoice` | Database name |
+
+<Warning>
+  The default configuration in `config/db.php` uses `root` with an empty password. **You must change these values** before deploying to production.
+</Warning>
+
+## Volume Mounts
+
+### Persistent Data
+
+Mount the following directories to persist data across container restarts:
+
+```bash
+docker run -d \
+  -v $(pwd)/img:/app/img \
+  -v $(pwd)/pdf/documentos:/app/pdf/documentos \
+  php-simple-invoice
+```
+
+**Important directories:**
+
+- `/app/img` - Stores uploaded company logos (max 1MB per image)
+- `/app/pdf/documentos` - Stores generated invoice PDFs
+- `/app/config` - Configuration files (database credentials)
+
+<Note>
+  Logo uploads are limited to JPG, JPEG, PNG, and GIF formats with a maximum size of 1MB. See `ajax/imagen_ajax.php:19` for upload validation logic.
+</Note>
+
+## Docker Compose
+
+Create a `docker-compose.yml` file for easier management:
+
+```yaml
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: invoice-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: simple_invoice
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./simple_invoice.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - invoice-net
+
+  web:
+    build: .
+    container_name: simple-invoice
+    ports:
+      - "80:80"
+    volumes:
+      - ./img:/app/img
+      - ./pdf/documentos:/app/pdf/documentos
+      - ./config:/app/config
+    depends_on:
+      - mysql
+    networks:
+      - invoice-net
+
+volumes:
+  mysql-data:
+
+networks:
+  invoice-net:
+```
+
+### Using Docker Compose
+
+```bash
+# Start services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+## Database Initialization
+
+Import the database schema on first run:
+
+```bash
+docker exec -i invoice-mysql mysql -u root -p simple_invoice < simple_invoice.sql
+```
+
+Or use Docker Compose volume mount (shown in the example above) to auto-initialize.
+
+## Connecting to the Container
+
+### Finding the Container IP
+
+If using Docker Machine:
+
+```bash
+docker-machine ip $(docker-machine active)
+```
+
+### Accessing the Application
+
+Connect to the container at:
+```
+http://DOCKER_IP:9000
+```
+
+Replace `DOCKER_IP` with your Docker host IP address.
+
+## Health Checks
+
+Add health checks to your Docker configuration:
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost/ || exit 1
+```
+
+## Troubleshooting
+
+### Container Won't Start
+
+Check the logs:
+```bash
+docker logs simple-invoice
+```
+
+### Database Connection Failed
+
+Verify the database container is running and accessible:
+```bash
+docker exec -it simple-invoice ping invoice-mysql
+```
+
+### Permission Issues
+
+Ensure the web server has write permissions:
+```bash
+docker exec -it simple-invoice chmod -R 755 /app/img /app/pdf/documentos
+```
+
+<Warning>
+  The Dockerfile copies all files to `/app` with `COPY . /app`. Ensure sensitive files like `.env` or local configuration are excluded via `.dockerignore`.
+</Warning>
+
+## Next Steps
+
+- Configure database credentials in `config/db.php`
+- Set up SSL/HTTPS with a reverse proxy
+- Review [Production Deployment](/deployment/production) for security best practices
+- Configure automated backups for volumes

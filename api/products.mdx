@@ -1,0 +1,266 @@
+---
+title: Products API
+description: API endpoints for managing products in Simple Invoice
+---
+
+## Overview
+
+The Products API provides endpoints for creating, updating, searching, and deleting product records. All endpoints require authentication via session.
+
+## Create Product
+
+<RequestExample>
+
+```bash cURL
+curl -X POST https://your-domain.com/ajax/nuevo_producto.php \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Cookie: PHPSESSID=your-session-id" \
+  -d "codigo=PROD-001" \
+  -d "nombre=Premium Widget" \
+  -d "precio=99.99" \
+  -d "estado=1"
+```
+
+```php PHP
+<?php
+$data = [
+    'codigo' => 'PROD-001',
+    'nombre' => 'Premium Widget',
+    'precio' => 99.99,
+    'estado' => 1
+];
+
+$ch = curl_init('https://your-domain.com/ajax/nuevo_producto.php');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField body="codigo" type="string" required>
+  Product code (up to 20 characters, must be unique)
+</ParamField>
+
+<ParamField body="nombre" type="string" required>
+  Product name (up to 255 characters)
+</ParamField>
+
+<ParamField body="precio" type="float" required>
+  Product price (sale price)
+</ParamField>
+
+<ParamField body="estado" type="integer" required>
+  Product status: `1` for active, `0` for inactive
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns HTML alert with success message: "Producto ha sido ingresado satisfactoriamente."
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns HTML alert with error message if validation fails
+</ResponseField>
+
+---
+
+## Update Product
+
+<RequestExample>
+
+```bash cURL
+curl -X POST https://your-domain.com/ajax/editar_producto.php \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Cookie: PHPSESSID=your-session-id" \
+  -d "mod_id=5" \
+  -d "mod_codigo=PROD-001" \
+  -d "mod_nombre=Premium Widget Pro" \
+  -d "mod_precio=129.99" \
+  -d "mod_estado=1"
+```
+
+```php PHP
+<?php
+$data = [
+    'mod_id' => 5,
+    'mod_codigo' => 'PROD-001',
+    'mod_nombre' => 'Premium Widget Pro',
+    'mod_precio' => 129.99,
+    'mod_estado' => 1
+];
+
+$ch = curl_init('https://your-domain.com/ajax/editar_producto.php');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField body="mod_id" type="integer" required>
+  Product ID to update
+</ParamField>
+
+<ParamField body="mod_codigo" type="string" required>
+  Updated product code
+</ParamField>
+
+<ParamField body="mod_nombre" type="string" required>
+  Updated product name
+</ParamField>
+
+<ParamField body="mod_precio" type="float" required>
+  Updated product price
+</ParamField>
+
+<ParamField body="mod_estado" type="integer" required>
+  Updated status: `1` for active, `0` for inactive
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns HTML alert with message: "Producto ha sido actualizado satisfactoriamente."
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns HTML alert with error message if validation fails
+</ResponseField>
+
+---
+
+## Search Products
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/ajax/buscar_productos.php?action=ajax&q=widget&page=1" \
+  -H "Cookie: PHPSESSID=your-session-id"
+```
+
+```php PHP
+<?php
+$query = http_build_query([
+    'action' => 'ajax',
+    'q' => 'widget',
+    'page' => 1
+]);
+
+$ch = curl_init('https://your-domain.com/ajax/buscar_productos.php?' . $query);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField query="action" type="string" required>
+  Must be set to `"ajax"` to trigger search
+</ParamField>
+
+<ParamField query="q" type="string">
+  Search term to filter products by code or name. Leave empty to return all products.
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination (default: 1, 10 results per page)
+</ParamField>
+
+<ResponseField name="html_table" type="html">
+  Returns HTML table with product data including:
+  - `id_producto` - Product ID
+  - `codigo_producto` - Product code
+  - `nombre_producto` - Product name
+  - `status_producto` - Status (1 = Active, 0 = Inactive)
+  - `precio_producto` - Product price
+  - `date_added` - Date added (formatted as d/m/Y)
+</ResponseField>
+
+---
+
+## Delete Product
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/ajax/buscar_productos.php?id=5" \
+  -H "Cookie: PHPSESSID=your-session-id"
+```
+
+```php PHP
+<?php
+$ch = curl_init('https://your-domain.com/ajax/buscar_productos.php?id=5');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField query="id" type="integer" required>
+  Product ID to delete
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns success alert if product is deleted successfully
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns error alert if:
+  - Product has associated invoice line items (foreign key constraint)
+  - Database error occurs
+</ResponseField>
+
+<Note>
+  Products cannot be deleted if they are referenced in any invoice line items (detalle_factura table).
+</Note>
+
+---
+
+## Search Products for Invoice
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/ajax/productos_factura.php?action=ajax&q=widget&page=1" \
+  -H "Cookie: PHPSESSID=your-session-id"
+```
+
+```javascript JavaScript
+fetch('https://your-domain.com/ajax/productos_factura.php?action=ajax&q=widget&page=1')
+  .then(response => response.text())
+  .then(html => console.log(html));
+```
+
+</RequestExample>
+
+<ParamField query="action" type="string" required>
+  Must be set to `"ajax"` to trigger search
+</ParamField>
+
+<ParamField query="q" type="string">
+  Search term to filter products by code or name
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination (default: 1, 5 results per page)
+</ParamField>
+
+<ResponseField name="html_table" type="html">
+  Returns HTML table with simplified product data for invoice creation:
+  - Product code
+  - Product name
+  - Quantity input field (default: 1)
+  - Price input field (editable)
+  - Add button to add product to invoice
+</ResponseField>
+
+<Note>
+  This endpoint is specifically designed for use in the invoice creation interface. It returns 5 products per page (instead of 10) and includes interactive form elements.
+</Note>

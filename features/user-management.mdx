@@ -1,0 +1,252 @@
+---
+title: 'User Management'
+description: 'Authentication system and user CRUD operations in Simple Invoice'
+icon: 'users'
+---
+
+## Overview
+
+Simple Invoice implements a secure user management system with PHP session-based authentication, password hashing using PHP's built-in `password_verify()` function, and comprehensive CRUD operations for managing system users.
+
+## Authentication System
+
+### Login Class
+
+The authentication system is built around the `Login` class located in `classes/Login.php`:
+
+```php classes/Login.php
+class Login
+{
+    private $db_connection = null;
+    public $errors = array();
+    public $messages = array();
+    
+    public function __construct()
+    {
+        session_start();
+        
+        if (isset($_GET["logout"])) {
+            $this->doLogout();
+        }
+        elseif (isset($_POST["login"])) {
+            $this->dologinWithPostData();
+        }
+    }
+}
+```
+
+### Password Verification
+
+The system uses PHP 5.5's `password_verify()` function for secure password checking:
+
+```php classes/Login.php
+if (password_verify($_POST['user_password'], $result_row->user_password_hash)) {
+    // Write user data into PHP SESSION
+    $_SESSION['user_id'] = $result_row->user_id;
+    $_SESSION['user_name'] = $result_row->user_name;
+    $_SESSION['user_email'] = $result_row->user_email;
+    $_SESSION['user_login_status'] = 1;
+} else {
+    $this->errors[] = "Usuario y/o contraseña no coinciden.";
+}
+```
+
+<Info>
+Passwords are stored as hashed values using PHP's `password_hash()` function, which uses the bcrypt algorithm by default.
+</Info>
+
+## Session Management
+
+### Login Process
+
+The login method performs the following steps:
+
+1. **Validate Input**: Check that username and password fields are not empty
+2. **Database Query**: Search for user by username or email
+3. **Password Verification**: Use `password_verify()` to check the submitted password against the stored hash
+4. **Session Creation**: Store user data in PHP session variables
+
+```php classes/Login.php
+$sql = "SELECT user_id, user_name, user_email, user_password_hash
+        FROM users
+        WHERE user_name = '" . $user_name . "' OR user_email = '" . $user_name . "';";
+$result_of_login_check = $this->db_connection->query($sql);
+```
+
+### Session Checking
+
+All protected pages check login status:
+
+```php usuarios.php
+session_start();
+if (!isset($_SESSION['user_login_status']) AND $_SESSION['user_login_status'] != 1) {
+    header("location: login.php");
+    exit;
+}
+```
+
+### Logout Process
+
+The logout method clears all session data:
+
+```php classes/Login.php
+public function doLogout()
+{
+    $_SESSION = array();
+    session_destroy();
+    $this->messages[] = "Has sido desconectado.";
+}
+```
+
+## User CRUD Operations
+
+### User Database Schema
+
+The `users` table structure from `simple_invoice.sql`:
+
+```sql
+CREATE TABLE IF NOT EXISTS `users` (
+  `user_id` int(11) NOT NULL AUTO_INCREMENT,
+  `firstname` varchar(20) NOT NULL,
+  `lastname` varchar(20) NOT NULL,
+  `user_name` varchar(64) NOT NULL,
+  `user_password_hash` varchar(255) NOT NULL,
+  `user_email` varchar(64) NOT NULL,
+  `date_added` datetime NOT NULL,
+  PRIMARY KEY (`user_id`),
+  UNIQUE KEY `user_name` (`user_name`),
+  UNIQUE KEY `user_email` (`user_email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+```
+
+### User Interface
+
+The user management page (`usuarios.php`) provides:
+
+- **Search functionality**: Filter users by name
+- **Add new user**: Modal dialog for user creation
+- **Edit user**: Update user information
+- **Change password**: Separate password update function
+
+### AJAX Operations
+
+User operations are handled via AJAX for a smooth user experience:
+
+#### Creating a New User
+
+```javascript usuarios.php
+$("#guardar_usuario").submit(function(event) {
+    $('#guardar_datos').attr("disabled", true);
+    
+    var parametros = $(this).serialize();
+    $.ajax({
+        type: "POST",
+        url: "ajax/nuevo_usuario.php",
+        data: parametros,
+        beforeSend: function(objeto){
+            $("#resultados_ajax").html("Mensaje: Cargando...");
+        },
+        success: function(datos){
+            $("#resultados_ajax").html(datos);
+            $('#guardar_datos').attr("disabled", false);
+            load(1);
+        }
+    });
+    event.preventDefault();
+})
+```
+
+#### Editing a User
+
+```javascript usuarios.php
+$("#editar_usuario").submit(function(event) {
+    $('#actualizar_datos2').attr("disabled", true);
+    
+    var parametros = $(this).serialize();
+    $.ajax({
+        type: "POST",
+        url: "ajax/editar_usuario.php",
+        data: parametros,
+        success: function(datos){
+            $("#resultados_ajax2").html(datos);
+            $('#actualizar_datos2').attr("disabled", false);
+            load(1);
+        }
+    });
+    event.preventDefault();
+})
+```
+
+#### Changing Password
+
+```javascript usuarios.php
+$("#editar_password").submit(function(event) {
+    $('#actualizar_datos3').attr("disabled", true);
+    
+    var parametros = $(this).serialize();
+    $.ajax({
+        type: "POST",
+        url: "ajax/editar_password.php",
+        data: parametros,
+        success: function(datos){
+            $("#resultados_ajax3").html(datos);
+            $('#actualizar_datos3').attr("disabled", false);
+            load(1);
+        }
+    });
+    event.preventDefault();
+})
+```
+
+## Security Features
+
+<CardGroup cols={2}>
+  <Card title="Password Hashing" icon="lock">
+    Uses PHP's `password_verify()` and bcrypt algorithm for secure password storage
+  </Card>
+  <Card title="SQL Injection Protection" icon="shield">
+    Employs `mysqli_real_escape_string()` to sanitize user inputs
+  </Card>
+  <Card title="Session Management" icon="key">
+    PHP sessions track authenticated users across requests
+  </Card>
+  <Card title="Access Control" icon="user-shield">
+    All protected pages verify login status before rendering
+  </Card>
+</CardGroup>
+
+## User Workflow
+
+<Steps>
+  <Step title="Login">
+    User enters username/email and password on the login page
+  </Step>
+  <Step title="Authentication">
+    System verifies credentials against the database using password_verify()
+  </Step>
+  <Step title="Session Creation">
+    Upon successful login, user data is stored in PHP session variables
+  </Step>
+  <Step title="Access Granted">
+    User can now access protected pages and perform operations
+  </Step>
+  <Step title="Logout">
+    User clicks logout to destroy the session and clear all session data
+  </Step>
+</Steps>
+
+## Related Files
+
+- `classes/Login.php` - Main authentication class
+- `usuarios.php` - User management interface
+- `ajax/nuevo_usuario.php` - Create new user endpoint
+- `ajax/editar_usuario.php` - Update user endpoint
+- `ajax/editar_password.php` - Change password endpoint
+- `js/usuarios.js` - Client-side user management logic
+
+<Note>
+The default admin credentials are:
+- **Username**: admin
+- **Password**: (hashed with bcrypt)
+- **Email**: admin@admin.com
+</Note>

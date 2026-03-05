@@ -1,0 +1,121 @@
+---
+title: Introduction
+description: Welcome to Simple Invoice - a PHP-based invoicing system for managing clients, products, and invoices
+---
+
+## Overview
+
+Simple Invoice (Facturación Simple) is a web-based invoicing system developed with PHP and MySQL. It provides essential features for creating commercial invoices, managing clients, products, and users within a single integrated platform.
+
+## Key Features
+
+Simple Invoice offers a comprehensive set of features for small to medium businesses:
+
+- **Client Management** - Create, edit, and manage client information including contact details and addresses
+- **Product Catalog** - Maintain a complete product database with codes, names, and pricing
+- **Invoice Generation** - Create professional invoices with automatic calculations and PDF export
+- **Multi-Currency Support** - Built-in support for 32 international currencies
+- **User Management** - Secure authentication system with role-based access
+- **AJAX-Powered Interface** - Smooth, responsive user experience without page reloads
+- **PDF Export** - Generate professional PDF invoices using TCPDF library
+- **Payment Tracking** - Support for multiple payment methods (Cash, Check, Bank Transfer, Credit)
+
+## Technology Stack
+
+Simple Invoice is built on a proven technology stack:
+
+- **Backend**: PHP (utilizing password hashing and session management)
+- **Database**: MySQL with MyISAM and InnoDB engines
+- **Frontend**: HTML5, CSS3 (Bootstrap 3), JavaScript (jQuery)
+- **AJAX**: Asynchronous data loading for improved performance
+- **PDF Generation**: TCPDF 5.0 library and html2pdf
+
+## System Requirements
+
+Before installing Simple Invoice, ensure your server meets these requirements:
+
+<Note>
+**Minimum Requirements**
+- PHP 5.3.7 or higher
+- MySQL 5.6 or higher
+- Web server (Apache, Nginx, or IIS)
+- phpMyAdmin (recommended for database setup)
+</Note>
+
+### PHP Version Compatibility
+
+The system automatically handles PHP version differences:
+
+```php
+if (version_compare(PHP_VERSION, '5.3.7', '<')) {
+    exit("Sorry, Simple PHP Login does not run on a PHP version smaller than 5.3.7 !");
+} else if (version_compare(PHP_VERSION, '5.5.0', '<')) {
+    require_once("libraries/password_compatibility_library.php");
+}
+```
+
+For PHP versions below 5.5.0, the system includes a password compatibility library to ensure secure password hashing.
+
+## Architecture Overview
+
+Simple Invoice follows a modular architecture:
+
+### Database Structure
+
+The system uses 8 core database tables:
+
+- `users` - User accounts and authentication
+- `clientes` - Client information and contact details
+- `products` - Product catalog with pricing
+- `facturas` - Invoice headers and metadata
+- `detalle_factura` - Invoice line items
+- `perfil` - Company profile and settings
+- `currencies` - Supported currency definitions
+- `tmp` - Temporary session data for invoice creation
+
+### Application Flow
+
+<Steps>
+  <Step title="Authentication">
+    Users log in through the secure authentication system with password hashing
+  </Step>
+  
+  <Step title="Session Management">
+    PHP sessions maintain user state throughout the application
+  </Step>
+  
+  <Step title="Data Operations">
+    AJAX calls handle CRUD operations without page reloads
+  </Step>
+  
+  <Step title="Invoice Generation">
+    Invoices are compiled from clients, products, and saved to the database
+  </Step>
+  
+  <Step title="PDF Export">
+    The TCPDF library generates professional PDF documents
+  </Step>
+</Steps>
+
+### Security Features
+
+- **Password Hashing**: Uses PHP's bcrypt algorithm (`$2y$10$`)
+- **SQL Injection Protection**: MySQLi real escape string on all inputs
+- **XSS Prevention**: Strip tags and ENT_QUOTES on user input
+- **Session-Based Authentication**: Secure session management
+- **Access Control**: Login verification on all protected pages
+
+## Default Credentials
+
+<Warning>
+After installation, you can log in with these default credentials:
+
+**Username:** `admin`  
+**Password:** `admin`
+
+**Important:** Change these credentials immediately after first login for security.
+</Warning>
+
+## Next Steps
+
+Ready to get started? Continue to the [Installation](/installation) guide to set up Simple Invoice on your server.

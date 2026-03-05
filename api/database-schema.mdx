@@ -1,0 +1,453 @@
+---
+title: Database Schema
+description: Complete database schema for Simple Invoice application
+---
+
+## Overview
+
+Simple Invoice uses a MySQL/MariaDB database named `simple_invoice` with 8 main tables. The schema uses MyISAM and InnoDB storage engines.
+
+## Tables
+
+### users
+
+Stores user accounts with hashed passwords.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `user_id` | INT(11) | PRIMARY KEY, AUTO_INCREMENT | Unique user identifier |
+| `firstname` | VARCHAR(20) | NOT NULL | User's first name |
+| `lastname` | VARCHAR(20) | NOT NULL | User's last name |
+| `user_name` | VARCHAR(64) | NOT NULL, UNIQUE | Username for login |
+| `user_password_hash` | VARCHAR(255) | NOT NULL | Hashed password (using password_hash) |
+| `user_email` | VARCHAR(64) | NOT NULL, UNIQUE | User's email address |
+| `date_added` | DATETIME | NOT NULL | Account creation timestamp |
+
+**Indexes:**
+- PRIMARY KEY on `user_id`
+- UNIQUE KEY on `user_name`
+- UNIQUE KEY on `user_email`
+
+**Default Data:**
+```sql
+INSERT INTO users VALUES 
+(1, 'Obed', 'Alvarado', 'admin', 
+'$2y$10$MPVHzZ2ZPOWmtUUGCq3RXu31OTB.jo7M9LZ7PmPQYmgETSNn19ejO',
+'admin@admin.com', '2016-05-21 15:06:00');
+-- Default password: admin
+```
+
+---
+
+### clientes
+
+Stores client/customer information.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id_cliente` | INT(11) | PRIMARY KEY, AUTO_INCREMENT | Unique client identifier |
+| `nombre_cliente` | VARCHAR(255) | NOT NULL, UNIQUE | Client name |
+| `telefono_cliente` | CHAR(30) | NOT NULL | Client phone number |
+| `email_cliente` | VARCHAR(64) | NOT NULL | Client email address |
+| `direccion_cliente` | VARCHAR(255) | NOT NULL | Client physical address |
+| `status_cliente` | TINYINT(4) | NOT NULL | Status: 1=Active, 0=Inactive |
+| `date_added` | DATETIME | NOT NULL | Record creation timestamp |
+
+**Indexes:**
+- PRIMARY KEY on `id_cliente`
+- UNIQUE KEY on `nombre_cliente`
+
+**Storage Engine:** MyISAM
+
+**Relationships:**
+- Referenced by `facturas.id_cliente` (foreign key constraint in application logic)
+
+---
+
+### products
+
+Stores product catalog information.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id_producto` | INT(11) | PRIMARY KEY, AUTO_INCREMENT | Unique product identifier |
+| `codigo_producto` | CHAR(20) | NOT NULL, UNIQUE | Product code/SKU |
+| `nombre_producto` | CHAR(255) | NOT NULL | Product name/description |
+| `status_producto` | TINYINT(4) | NOT NULL | Status: 1=Active, 0=Inactive |
+| `date_added` | DATETIME | NOT NULL | Record creation timestamp |
+| `precio_producto` | DOUBLE | NOT NULL | Product sale price |
+
+**Indexes:**
+- PRIMARY KEY on `id_producto`
+- UNIQUE KEY on `codigo_producto`
+
+**Storage Engine:** MyISAM
+
+**Relationships:**
+- Referenced by `detalle_factura.id_producto`
+- Referenced by `tmp.id_producto`
+
+---
+
+### facturas
+
+Stores invoice header information.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id_factura` | INT(11) | PRIMARY KEY, AUTO_INCREMENT | Unique invoice identifier |
+| `numero_factura` | INT(11) | NOT NULL, UNIQUE | Invoice number (display) |
+| `fecha_factura` | DATETIME | NOT NULL | Invoice date |
+| `id_cliente` | INT(11) | NOT NULL | Client ID (references clientes) |
+| `id_vendedor` | INT(11) | NOT NULL | Vendor/salesperson ID (references users) |
+| `condiciones` | VARCHAR(30) | NOT NULL | Payment terms/conditions |
+| `total_venta` | VARCHAR(20) | NOT NULL | Total sale amount |
+| `estado_factura` | TINYINT(1) | NOT NULL | Status: 1=Paid, 0=Pending |
+
+**Indexes:**
+- PRIMARY KEY on `id_factura`
+- UNIQUE KEY on `numero_factura`
+
+**Storage Engine:** MyISAM
+
+**Relationships:**
+- Foreign key to `clientes.id_cliente` (application enforced)
+- Foreign key to `users.user_id` via `id_vendedor` (application enforced)
+- Referenced by `detalle_factura.numero_factura`
+
+---
+
+### detalle_factura
+
+Stores invoice line items (products on each invoice).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id_detalle` | INT(11) | PRIMARY KEY, AUTO_INCREMENT | Unique line item identifier |
+| `numero_factura` | INT(11) | NOT NULL | Invoice number (references facturas) |
+| `id_producto` | INT(11) | NOT NULL | Product ID (references products) |
+| `cantidad` | INT(11) | NOT NULL | Quantity ordered |
+| `precio_venta` | DOUBLE | NOT NULL | Unit price at time of sale |
+
+**Indexes:**
+- PRIMARY KEY on `id_detalle`
+- KEY on (`numero_factura`, `id_producto`)
+
+**Storage Engine:** MyISAM
+
+**Relationships:**
+- Foreign key to `facturas.numero_factura` (application enforced)
+- Foreign key to `products.id_producto` (application enforced)
+
+**Calculated Fields:**
+- Line total = `cantidad` × `precio_venta`
+
+---
+
+### perfil
+
+Stores company/business profile settings (singleton table with one row).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id_perfil` | INT(11) | PRIMARY KEY, AUTO_INCREMENT | Profile identifier (always 1) |
+| `nombre_empresa` | VARCHAR(150) | NOT NULL | Company name |
+| `direccion` | VARCHAR(255) | NOT NULL | Company address |
+| `ciudad` | VARCHAR(100) | NOT NULL | City |
+| `codigo_postal` | VARCHAR(100) | NOT NULL | Postal/ZIP code |
+| `estado` | VARCHAR(100) | NOT NULL | State/province |
+| `telefono` | VARCHAR(20) | NOT NULL | Company phone |
+| `email` | VARCHAR(64) | NOT NULL | Company email |
+| `impuesto` | INT(2) | NOT NULL | Tax/IVA percentage (e.g., 13) |
+| `moneda` | VARCHAR(6) | NOT NULL | Currency symbol |
+| `logo_url` | VARCHAR(255) | NOT NULL | Path to company logo image |
+
+**Indexes:**
+- PRIMARY KEY on `id_perfil`
+
+**Storage Engine:** InnoDB
+
+**Default Data:**
+```sql
+INSERT INTO perfil VALUES 
+(1, 'SISTEMAS WEB LA', 'Colonias Los Andes #250', 'Moncagua', 
+'3301', 'San Miguel', '+(503) 2682-555', 'info@obedalvarado.pw', 
+13, '$', 'img/1478792451_google30.png');
+```
+
+**Usage:**
+- Used in invoice PDF generation
+- Tax percentage applied to all invoices
+- Currency symbol displayed throughout application
+
+---
+
+### tmp
+
+Temporary storage for invoice line items during invoice creation (session-based).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id_tmp` | INT(11) | PRIMARY KEY, AUTO_INCREMENT | Unique temporary item identifier |
+| `id_producto` | INT(11) | NOT NULL | Product ID (references products) |
+| `cantidad_tmp` | INT(11) | NOT NULL | Quantity |
+| `precio_tmp` | DOUBLE(8,2) | NULL | Unit price |
+| `session_id` | VARCHAR(100) | NOT NULL | PHP session ID |
+
+**Indexes:**
+- PRIMARY KEY on `id_tmp`
+
+**Storage Engine:** MyISAM
+
+**Usage:**
+- Stores products added to invoice before finalization
+- Each user session has its own set of temporary items
+- Items are moved to `detalle_factura` when invoice is finalized
+- Should be periodically cleaned of old sessions
+
+---
+
+### currencies
+
+Reference table for supported currencies (pre-populated).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | INT(10) UNSIGNED | PRIMARY KEY, AUTO_INCREMENT | Currency identifier |
+| `name` | VARCHAR(255) | NOT NULL | Currency name |
+| `symbol` | VARCHAR(255) | NOT NULL | Currency symbol (HTML encoded) |
+| `precision` | VARCHAR(255) | NOT NULL | Decimal precision (e.g., "2") |
+| `thousand_separator` | VARCHAR(255) | NOT NULL | Thousands separator (e.g., ",") |
+| `decimal_separator` | VARCHAR(255) | NOT NULL | Decimal separator (e.g., ".") |
+| `code` | VARCHAR(255) | NOT NULL | ISO currency code |
+
+**Indexes:**
+- PRIMARY KEY on `id`
+
+**Storage Engine:** InnoDB
+
+**Supported Currencies:** 32 currencies including USD, EUR, GBP, CAD, MXN, BRL, ARS, COP, etc.
+
+**Example Data:**
+```sql
+(1, 'US Dollar', '$', '2', ',', '.', 'USD'),
+(2, 'Libra Esterlina', '&pound;', '2', ',', '.', 'GBP'),
+(3, 'Euro', 'â‚¬', '2', '.', ',', 'EUR')
+```
+
+---
+
+## Entity Relationship Diagram
+
+```
+┌─────────────┐
+│    users    │
+├─────────────┤
+│ user_id (PK)│───┐
+│ firstname   │   │
+│ lastname    │   │
+│ user_name   │   │
+│ user_email  │   │
+└─────────────┘   │
+                  │
+                  │
+┌─────────────┐   │      ┌──────────────┐
+│  clientes   │   │      │   facturas   │
+├─────────────┤   │      ├──────────────┤
+│id_cliente(PK)───┼─────→│id_factura(PK)│
+│nombre_cliente   │      │numero_factura│←───┐
+│telefono_cliente │      │fecha_factura │    │
+│email_cliente│   │      │id_cliente(FK)│    │
+│direccion_cliente│      │id_vendedor(FK)───┘
+│status_cliente│         │condiciones   │
+└─────────────┘         │total_venta   │
+                         │estado_factura│
+┌─────────────┐         └──────────────┘
+│  products   │                │
+├─────────────┤                │
+│id_producto(PK)──┬────────────┘
+│codigo_producto│ │
+│nombre_producto│ │  ┌────────────────┐
+│precio_producto│ │  │detalle_factura │
+│status_producto│ │  ├────────────────┤
+└─────────────┘  │  │id_detalle (PK) │
+                  └→│numero_factura(FK)
+┌─────────────┐    │id_producto (FK)│
+│     tmp     │    │cantidad        │
+├─────────────┤    │precio_venta    │
+│id_tmp (PK)  │    └────────────────┘
+│id_producto(FK)─┘
+│cantidad_tmp │
+│precio_tmp   │
+│session_id   │
+└─────────────┘
+
+┌─────────────┐
+│   perfil    │
+├─────────────┤
+│id_perfil(PK)│ (singleton: id=1)
+│nombre_empresa
+│direccion    │
+│impuesto     │
+│moneda       │
+└─────────────┘
+```
+
+---
+
+## SQL Schema Export
+
+The complete schema can be found in `simple_invoice.sql` in the source code root directory.
+
+<CodeGroup>
+
+```sql Create Tables
+CREATE TABLE users (
+  user_id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  firstname VARCHAR(20) NOT NULL,
+  lastname VARCHAR(20) NOT NULL,
+  user_name VARCHAR(64) NOT NULL UNIQUE,
+  user_password_hash VARCHAR(255) NOT NULL,
+  user_email VARCHAR(64) NOT NULL UNIQUE,
+  date_added DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE clientes (
+  id_cliente INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  nombre_cliente VARCHAR(255) NOT NULL UNIQUE,
+  telefono_cliente CHAR(30) NOT NULL,
+  email_cliente VARCHAR(64) NOT NULL,
+  direccion_cliente VARCHAR(255) NOT NULL,
+  status_cliente TINYINT(4) NOT NULL,
+  date_added DATETIME NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE products (
+  id_producto INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  codigo_producto CHAR(20) NOT NULL UNIQUE,
+  nombre_producto CHAR(255) NOT NULL,
+  status_producto TINYINT(4) NOT NULL,
+  date_added DATETIME NOT NULL,
+  precio_producto DOUBLE NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE facturas (
+  id_factura INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  numero_factura INT(11) NOT NULL UNIQUE,
+  fecha_factura DATETIME NOT NULL,
+  id_cliente INT(11) NOT NULL,
+  id_vendedor INT(11) NOT NULL,
+  condiciones VARCHAR(30) NOT NULL,
+  total_venta VARCHAR(20) NOT NULL,
+  estado_factura TINYINT(1) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE detalle_factura (
+  id_detalle INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  numero_factura INT(11) NOT NULL,
+  id_producto INT(11) NOT NULL,
+  cantidad INT(11) NOT NULL,
+  precio_venta DOUBLE NOT NULL,
+  KEY numero_factura (numero_factura, id_producto)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE tmp (
+  id_tmp INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id_producto INT(11) NOT NULL,
+  cantidad_tmp INT(11) NOT NULL,
+  precio_tmp DOUBLE(8,2) DEFAULT NULL,
+  session_id VARCHAR(100) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE perfil (
+  id_perfil INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  nombre_empresa VARCHAR(150) NOT NULL,
+  direccion VARCHAR(255) NOT NULL,
+  ciudad VARCHAR(100) NOT NULL,
+  codigo_postal VARCHAR(100) NOT NULL,
+  estado VARCHAR(100) NOT NULL,
+  telefono VARCHAR(20) NOT NULL,
+  email VARCHAR(64) NOT NULL,
+  impuesto INT(2) NOT NULL,
+  moneda VARCHAR(6) NOT NULL,
+  logo_url VARCHAR(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+```
+
+</CodeGroup>
+
+---
+
+## Data Integrity Notes
+
+<Note>
+  **Foreign Key Constraints:** The schema uses MyISAM engine for most tables, which does not support foreign key constraints. Data integrity is enforced at the application level through PHP validation.
+</Note>
+
+<Warning>
+  **Cascade Deletions:** When deleting records:
+  - Deleting a client: Check for associated invoices first
+  - Deleting a product: Check for references in detalle_factura
+  - Deleting an invoice: Manually delete associated detalle_factura records
+</Warning>
+
+**Application-Level Constraints:**
+- Clients with invoices cannot be deleted
+- Products with invoice line items cannot be deleted  
+- User ID 1 (admin) cannot be deleted
+- Deleting an invoice also deletes its line items
+
+---
+
+## Common Queries
+
+<CodeGroup>
+
+```sql Get Invoice with Details
+SELECT 
+  f.numero_factura,
+  f.fecha_factura,
+  c.nombre_cliente,
+  u.firstname,
+  u.lastname,
+  f.total_venta,
+  f.estado_factura
+FROM facturas f
+JOIN clientes c ON f.id_cliente = c.id_cliente
+JOIN users u ON f.id_vendedor = u.user_id
+WHERE f.id_factura = ?;
+
+SELECT 
+  p.codigo_producto,
+  p.nombre_producto,
+  d.cantidad,
+  d.precio_venta,
+  (d.cantidad * d.precio_venta) as total
+FROM detalle_factura d
+JOIN products p ON d.id_producto = p.id_producto
+WHERE d.numero_factura = ?;
+```
+
+```sql Calculate Invoice Total
+SELECT 
+  SUM(cantidad * precio_venta) as subtotal,
+  (SELECT impuesto FROM perfil WHERE id_perfil = 1) as tax_rate
+FROM detalle_factura
+WHERE numero_factura = ?;
+```
+
+```sql Active Products
+SELECT * FROM products 
+WHERE status_producto = 1 
+ORDER BY nombre_producto;
+```
+
+```sql Search Clients
+SELECT * FROM clientes 
+WHERE nombre_cliente LIKE '%search_term%' 
+AND status_cliente = 1
+ORDER BY nombre_cliente
+LIMIT 10;
+```
+
+</CodeGroup>

@@ -1,0 +1,343 @@
+---
+title: 'Product Management'
+description: 'Managing product catalog, pricing, and inventory in Simple Invoice'
+icon: 'box'
+---
+
+## Overview
+
+The product management system allows you to maintain a catalog of products or services with codes, names, prices, and status tracking. Products are linked to invoices and can be quickly searched and added during invoice creation.
+
+## Product Database Structure
+
+The `products` table stores the complete product catalog:
+
+```sql simple_invoice.sql
+CREATE TABLE IF NOT EXISTS `products` (
+  `id_producto` int(11) NOT NULL AUTO_INCREMENT,
+  `codigo_producto` char(20) NOT NULL,
+  `nombre_producto` char(255) NOT NULL,
+  `status_producto` tinyint(4) NOT NULL,
+  `date_added` datetime NOT NULL,
+  `precio_producto` double NOT NULL,
+  PRIMARY KEY (`id_producto`),
+  UNIQUE KEY `codigo_producto` (`codigo_producto`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+
+<Info>
+Product codes are unique in the database, allowing reliable identification and preventing duplicates.
+</Info>
+
+## Product Management Interface
+
+The main product page (`productos.php`) provides a full-featured interface:
+
+```php productos.php
+<div class="panel panel-info">
+    <div class="panel-heading">
+        <div class="btn-group pull-right">
+            <button type='button' class="btn btn-info" data-toggle="modal" data-target="#nuevoProducto">
+                <span class="glyphicon glyphicon-plus"></span> Nuevo Producto
+            </button>
+        </div>
+        <h4><i class='glyphicon glyphicon-search'></i> Buscar Productos</h4>
+    </div>
+</div>
+```
+
+### Search Functionality
+
+Products can be searched by code or name:
+
+```php productos.php
+<form class="form-horizontal" role="form" id="datos_cotizacion">
+    <div class="form-group row">
+        <label for="q" class="col-md-2 control-label">Código o nombre</label>
+        <div class="col-md-5">
+            <input type="text" class="form-control" id="q" 
+                   placeholder="Código o nombre del producto" onkeyup='load(1);'>
+        </div>
+        <div class="col-md-3">
+            <button type="button" class="btn btn-default" onclick='load(1);'>
+                <span class="glyphicon glyphicon-search"></span> Buscar
+            </button>
+        </div>
+    </div>
+</form>
+```
+
+## Creating New Products
+
+Products are created via AJAX submission to `ajax/nuevo_producto.php` with comprehensive validation:
+
+```php ajax/nuevo_producto.php
+if (empty($_POST['codigo'])) {
+    $errors[] = "Código vacío";
+} else if (empty($_POST['nombre'])) {
+    $errors[] = "Nombre del producto vacío";
+} else if ($_POST['estado'] == "") {
+    $errors[] = "Selecciona el estado del producto";
+} else if (empty($_POST['precio'])) {
+    $errors[] = "Precio de venta vacío";
+} else if (
+    !empty($_POST['codigo']) &&
+    !empty($_POST['nombre']) &&
+    $_POST['estado'] != "" &&
+    !empty($_POST['precio'])
+) {
+    // Sanitize inputs
+    $codigo = mysqli_real_escape_string($con, (strip_tags($_POST["codigo"], ENT_QUOTES)));
+    $nombre = mysqli_real_escape_string($con, (strip_tags($_POST["nombre"], ENT_QUOTES)));
+    $estado = intval($_POST['estado']);
+    $precio_venta = floatval($_POST['precio']);
+    $date_added = date("Y-m-d H:i:s");
+    
+    $sql = "INSERT INTO products (codigo_producto, nombre_producto, status_producto, 
+            date_added, precio_producto) 
+            VALUES ('$codigo', '$nombre', '$estado', '$date_added', '$precio_venta')";
+    
+    $query_new_insert = mysqli_query($con, $sql);
+    
+    if ($query_new_insert) {
+        $messages[] = "Producto ha sido ingresado satisfactoriamente.";
+    } else {
+        $errors[] = "Lo siento algo ha salido mal intenta nuevamente." . mysqli_error($con);
+    }
+}
+```
+
+<Note>
+All product fields are required: code, name, status, and price. Inputs are sanitized to prevent security vulnerabilities.
+</Note>
+
+## Product Form Handling
+
+The product form is submitted via AJAX for a smooth user experience:
+
+### Creating Products
+
+```javascript productos.php
+$("#guardar_producto").submit(function(event) {
+    $('#guardar_datos').attr("disabled", true);
+    
+    var parametros = $(this).serialize();
+    $.ajax({
+        type: "POST",
+        url: "ajax/nuevo_producto.php",
+        data: parametros,
+        beforeSend: function(objeto) {
+            $("#resultados_ajax_productos").html("Mensaje: Cargando...");
+        },
+        success: function(datos) {
+            $("#resultados_ajax_productos").html(datos);
+            $('#guardar_datos').attr("disabled", false);
+            load(1);
+        }
+    });
+    event.preventDefault();
+})
+```
+
+### Editing Products
+
+```javascript productos.php
+$("#editar_producto").submit(function(event) {
+    $('#actualizar_datos').attr("disabled", true);
+    
+    var parametros = $(this).serialize();
+    $.ajax({
+        type: "POST",
+        url: "ajax/editar_producto.php",
+        data: parametros,
+        beforeSend: function(objeto) {
+            $("#resultados_ajax2").html("Mensaje: Cargando...");
+        },
+        success: function(datos) {
+            $("#resultados_ajax2").html(datos);
+            $('#actualizar_datos').attr("disabled", false);
+            load(1);
+        }
+    });
+    event.preventDefault();
+})
+```
+
+## Loading Product Data for Editing
+
+Product information is loaded into the edit modal using JavaScript:
+
+```javascript productos.php
+function obtener_datos(id) {
+    var codigo_producto = $("#codigo_producto" + id).val();
+    var nombre_producto = $("#nombre_producto" + id).val();
+    var estado = $("#estado" + id).val();
+    var precio_producto = $("#precio_producto" + id).val();
+    
+    $("#mod_id").val(id);
+    $("#mod_codigo").val(codigo_producto);
+    $("#mod_nombre").val(nombre_producto);
+    $("#mod_precio").val(precio_producto);
+    $("#mod_estado").val(estado);
+}
+```
+
+## Product Status Management
+
+Products have a status field that controls their availability:
+
+- **1**: Active product (available for invoices)
+- **0**: Inactive product (archived)
+
+This allows you to keep historical product data without cluttering active product lists.
+
+## Price Management
+
+Product prices are stored as `double` values allowing decimal precision:
+
+```php
+$precio_venta = floatval($_POST['precio']);
+```
+
+Prices are formatted for display in invoices:
+
+```php
+$precio_venta_f = number_format($precio_venta, 2);
+```
+
+<Info>
+Prices support two decimal places and are formatted according to the currency settings in the company profile.
+</Info>
+
+## Products in Invoices
+
+Products are temporarily stored in the `tmp` table during invoice creation:
+
+```sql simple_invoice.sql
+CREATE TABLE IF NOT EXISTS `tmp` (
+  `id_tmp` int(11) NOT NULL AUTO_INCREMENT,
+  `id_producto` int(11) NOT NULL,
+  `cantidad_tmp` int(11) NOT NULL,
+  `precio_tmp` double(8,2) DEFAULT NULL,
+  `session_id` varchar(100) NOT NULL,
+  PRIMARY KEY (`id_tmp`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+```
+
+This table holds invoice line items tied to the user's session until the invoice is finalized.
+
+## Adding Products to Invoices
+
+When creating an invoice, products are added via AJAX:
+
+```php ajax/agregar_facturacion.php
+if (!empty($id) and !empty($cantidad) and !empty($precio_venta)) {
+    $insert_tmp = mysqli_query($con, 
+        "INSERT INTO tmp (id_producto, cantidad_tmp, precio_tmp, session_id) 
+         VALUES ('$id', '$cantidad', '$precio_venta', '$session_id')");
+}
+```
+
+### Calculating Totals
+
+```php ajax/agregar_facturacion.php
+$sumador_total = 0;
+$sql = mysqli_query($con, 
+    "SELECT * FROM products, tmp 
+     WHERE products.id_producto = tmp.id_producto 
+     AND tmp.session_id = '" . $session_id . "'");
+
+while ($row = mysqli_fetch_array($sql)) {
+    $cantidad = $row['cantidad_tmp'];
+    $precio_venta = $row['precio_tmp'];
+    $precio_venta_f = number_format($precio_venta, 2);
+    $precio_venta_r = str_replace(",", "", $precio_venta_f);
+    $precio_total = $precio_venta_r * $cantidad;
+    $precio_total_f = number_format($precio_total, 2);
+    $precio_total_r = str_replace(",", "", $precio_total_f);
+    $sumador_total += $precio_total_r;
+}
+```
+
+### Tax Calculation
+
+```php ajax/agregar_facturacion.php
+$impuesto = get_row('perfil', 'impuesto', 'id_perfil', 1);
+$subtotal = number_format($sumador_total, 2, '.', '');
+$total_iva = ($subtotal * $impuesto) / 100;
+$total_iva = number_format($total_iva, 2, '.', '');
+$total_factura = $subtotal + $total_iva;
+```
+
+## Product Information Fields
+
+<CardGroup cols={2}>
+  <Card title="Product Code" icon="barcode">
+    **Required** - Unique identifier (up to 20 characters)
+  </Card>
+  <Card title="Product Name" icon="tag">
+    **Required** - Descriptive name (up to 255 characters)
+  </Card>
+  <Card title="Price" icon="dollar-sign">
+    **Required** - Unit price (double precision)
+  </Card>
+  <Card title="Status" icon="toggle-on">
+    **Required** - Active (1) or Inactive (0)
+  </Card>
+  <Card title="Date Added" icon="calendar">
+    Automatic timestamp of product creation
+  </Card>
+</CardGroup>
+
+## Product Workflow
+
+<Steps>
+  <Step title="Access Product Management">
+    Navigate to the Productos page from the main menu
+  </Step>
+  <Step title="Add New Product">
+    Click "Nuevo Producto" button to open the creation modal
+  </Step>
+  <Step title="Enter Product Details">
+    Fill in product code, name, price, and set status to Active
+  </Step>
+  <Step title="Save Product">
+    Submit the form - product is immediately available for invoices
+  </Step>
+  <Step title="Search Products">
+    Use the search box to filter by code or name
+  </Step>
+  <Step title="Edit or Deactivate">
+    Update product information or change status to Inactive to archive
+  </Step>
+</Steps>
+
+## Invoice Detail Storage
+
+When an invoice is finalized, product line items are stored permanently:
+
+```sql simple_invoice.sql
+CREATE TABLE IF NOT EXISTS `detalle_factura` (
+  `id_detalle` int(11) NOT NULL AUTO_INCREMENT,
+  `numero_factura` int(11) NOT NULL,
+  `id_producto` int(11) NOT NULL,
+  `cantidad` int(11) NOT NULL,
+  `precio_venta` double NOT NULL,
+  PRIMARY KEY (`id_detalle`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+
+<Warning>
+Products are stored by reference in invoices. Changing a product's price won't affect existing invoices, as the price at time of sale is captured in the invoice detail.
+</Warning>
+
+## Related Files
+
+- `productos.php` - Main product management interface
+- `ajax/nuevo_producto.php` - Create new product endpoint
+- `ajax/editar_producto.php` - Update product endpoint
+- `ajax/buscar_productos.php` - Search products for invoices
+- `ajax/agregar_facturacion.php` - Add products to invoice
+- `modal/registro_productos.php` - New product modal dialog
+- `modal/editar_productos.php` - Edit product modal dialog
+- `js/productos.js` - Client-side product logic

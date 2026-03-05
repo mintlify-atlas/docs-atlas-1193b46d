@@ -1,0 +1,400 @@
+---
+title: Invoices API
+description: API endpoints for managing invoices in Simple Invoice
+---
+
+## Overview
+
+The Invoices API provides endpoints for creating, updating, searching, and generating PDF invoices. All endpoints require authentication via session.
+
+## Add Product to Invoice (Temporary)
+
+<RequestExample>
+
+```bash cURL
+curl -X POST https://your-domain.com/ajax/agregar_facturacion.php \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Cookie: PHPSESSID=your-session-id" \
+  -d "id=5" \
+  -d "cantidad=2" \
+  -d "precio_venta=99.99"
+```
+
+```php PHP
+<?php
+$data = [
+    'id' => 5,
+    'cantidad' => 2,
+    'precio_venta' => 99.99
+];
+
+$ch = curl_init('https://your-domain.com/ajax/agregar_facturacion.php');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField body="id" type="integer" required>
+  Product ID to add to invoice
+</ParamField>
+
+<ParamField body="cantidad" type="integer" required>
+  Quantity of product
+</ParamField>
+
+<ParamField body="precio_venta" type="float" required>
+  Sale price per unit
+</ParamField>
+
+<ResponseField name="html_table" type="html">
+  Returns HTML table showing current invoice items in temporary storage (`tmp` table) with:
+  - Product code and name
+  - Quantity
+  - Unit price
+  - Total price
+  - Subtotal, tax (IVA), and grand total
+</ResponseField>
+
+<Note>
+  This endpoint adds products to a temporary session-based storage before the invoice is finalized. Products are stored in the `tmp` table with the current session ID.
+</Note>
+
+---
+
+## Remove Product from Invoice (Temporary)
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/ajax/agregar_facturacion.php?id=10" \
+  -H "Cookie: PHPSESSID=your-session-id"
+```
+
+```php PHP
+<?php
+$ch = curl_init('https://your-domain.com/ajax/agregar_facturacion.php?id=10');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField query="id" type="integer" required>
+  Temporary item ID (`id_tmp`) to remove from invoice
+</ParamField>
+
+<ResponseField name="html_table" type="html">
+  Returns updated HTML table with remaining invoice items
+</ResponseField>
+
+---
+
+## Update Invoice
+
+<RequestExample>
+
+```bash cURL
+curl -X POST https://your-domain.com/ajax/editar_factura.php \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Cookie: PHPSESSID=your-session-id" \
+  -d "id_cliente=5" \
+  -d "id_vendedor=1" \
+  -d "condiciones=1" \
+  -d "estado_factura=1"
+```
+
+```php PHP
+<?php
+$data = [
+    'id_cliente' => 5,
+    'id_vendedor' => 1,
+    'condiciones' => 1,
+    'estado_factura' => 1
+];
+
+$ch = curl_init('https://your-domain.com/ajax/editar_factura.php');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField body="id_cliente" type="integer" required>
+  Client ID associated with the invoice
+</ParamField>
+
+<ParamField body="id_vendedor" type="integer" required>
+  Vendor/salesperson user ID
+</ParamField>
+
+<ParamField body="condiciones" type="integer" required>
+  Payment terms/conditions code
+</ParamField>
+
+<ParamField body="estado_factura" type="integer" required>
+  Invoice status: `1` for paid, `0` for pending
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns HTML alert with message: "Factura ha sido actualizada satisfactoriamente."
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns HTML alert with error message if validation fails
+</ResponseField>
+
+<Note>
+  The invoice ID is retrieved from the session variable `$_SESSION['id_factura']`. You must set this session variable before calling this endpoint.
+</Note>
+
+---
+
+## Add Product to Existing Invoice
+
+<RequestExample>
+
+```bash cURL
+curl -X POST https://your-domain.com/ajax/editar_facturacion.php \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Cookie: PHPSESSID=your-session-id" \
+  -d "id=5" \
+  -d "cantidad=3" \
+  -d "precio_venta=149.99"
+```
+
+```php PHP
+<?php
+$data = [
+    'id' => 5,
+    'cantidad' => 3,
+    'precio_venta' => 149.99
+];
+
+$ch = curl_init('https://your-domain.com/ajax/editar_facturacion.php');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField body="id" type="integer" required>
+  Product ID to add to invoice
+</ParamField>
+
+<ParamField body="cantidad" type="integer" required>
+  Quantity of product
+</ParamField>
+
+<ParamField body="precio_venta" type="float" required>
+  Sale price per unit
+</ParamField>
+
+<ResponseField name="html_table" type="html">
+  Returns HTML table showing updated invoice line items with:
+  - Product details
+  - Quantities and prices
+  - Subtotal, tax, and total
+  - Updates the `total_venta` field in the `facturas` table
+</ResponseField>
+
+<Note>
+  This endpoint adds products to an existing invoice (stored in `detalle_factura` table). The invoice number is retrieved from `$_SESSION['numero_factura']`.
+</Note>
+
+---
+
+## Remove Product from Existing Invoice
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/ajax/editar_facturacion.php?id=25" \
+  -H "Cookie: PHPSESSID=your-session-id"
+```
+
+```php PHP
+<?php
+$ch = curl_init('https://your-domain.com/ajax/editar_facturacion.php?id=25');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField query="id" type="integer" required>
+  Detail ID (`id_detalle`) to remove from invoice
+</ParamField>
+
+<ResponseField name="html_table" type="html">
+  Returns updated HTML table with remaining invoice line items and recalculated totals
+</ResponseField>
+
+---
+
+## Search Invoices
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/ajax/buscar_facturas.php?action=ajax&q=Acme&page=1" \
+  -H "Cookie: PHPSESSID=your-session-id"
+```
+
+```php PHP
+<?php
+$query = http_build_query([
+    'action' => 'ajax',
+    'q' => 'Acme',
+    'page' => 1
+]);
+
+$ch = curl_init('https://your-domain.com/ajax/buscar_facturas.php?' . $query);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField query="action" type="string" required>
+  Must be set to `"ajax"` to trigger search
+</ParamField>
+
+<ParamField query="q" type="string">
+  Search term to filter invoices by client name or invoice number. Leave empty to return all invoices.
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination (default: 1, 10 results per page)
+</ParamField>
+
+<ResponseField name="html_table" type="html">
+  Returns HTML table with invoice data including:
+  - `numero_factura` - Invoice number
+  - `fecha_factura` - Invoice date
+  - `nombre_cliente` - Client name (with phone and email in tooltip)
+  - `firstname`/`lastname` - Vendor name
+  - `estado_factura` - Status (1 = Paid, 0 = Pending)
+  - `total_venta` - Total sale amount
+  - Action buttons for edit, download, and delete
+</ResponseField>
+
+---
+
+## Delete Invoice
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/ajax/buscar_facturas.php?id=1001" \
+  -H "Cookie: PHPSESSID=your-session-id"
+```
+
+```php PHP
+<?php
+$ch = curl_init('https://your-domain.com/ajax/buscar_facturas.php?id=1001');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField query="id" type="integer" required>
+  Invoice number (`numero_factura`) to delete
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns success alert if invoice and all associated line items are deleted
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns error alert if deletion fails
+</ResponseField>
+
+<Note>
+  Deleting an invoice will also delete all associated line items from the `detalle_factura` table.
+</Note>
+
+---
+
+## Generate Invoice PDF
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/pdf/documentos/factura_pdf.php?id_cliente=5&id_vendedor=1&condiciones=1" \
+  -H "Cookie: PHPSESSID=your-session-id" \
+  --output invoice.pdf
+```
+
+```php PHP
+<?php
+$query = http_build_query([
+    'id_cliente' => 5,
+    'id_vendedor' => 1,
+    'condiciones' => 1
+]);
+
+$ch = curl_init('https://your-domain.com/pdf/documentos/factura_pdf.php?' . $query);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$pdfContent = curl_exec($ch);
+curl_close($ch);
+
+file_put_contents('invoice.pdf', $pdfContent);
+?>
+```
+
+</RequestExample>
+
+<ParamField query="id_cliente" type="integer" required>
+  Client ID for the invoice
+</ParamField>
+
+<ParamField query="id_vendedor" type="integer" required>
+  Vendor/salesperson user ID
+</ParamField>
+
+<ParamField query="condiciones" type="string" required>
+  Payment terms/conditions
+</ParamField>
+
+<ResponseField name="pdf" type="binary">
+  Returns PDF file named "Factura.pdf" with:
+  - Company information from `perfil` table
+  - Client information
+  - Invoice items from session's `tmp` table
+  - Calculated subtotal, tax (IVA), and total
+</ResponseField>
+
+<Note>
+  This endpoint:
+  1. Creates a new invoice record in the `facturas` table
+  2. Generates a new invoice number (auto-increment from last invoice)
+  3. Uses products stored in session's `tmp` table
+  4. Returns a PDF document using the HTML2PDF library
+  5. Will display alert and close window if no products are in temporary storage
+</Note>
+
+<Warning>
+  Ensure products have been added to the temporary storage (via `agregar_facturacion.php`) before calling this endpoint, or it will fail.
+</Warning>

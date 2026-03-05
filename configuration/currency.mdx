@@ -1,0 +1,255 @@
+---
+title: Currency Configuration
+description: Configure multi-currency support with 32+ international currencies
+icon: dollar-sign
+---
+
+## Overview
+
+Simple Invoice includes built-in support for 32 international currencies. The currency system manages symbols, formatting, precision, and separators for proper display of monetary values.
+
+## Database Schema
+
+Currencies are stored in the `currencies` table:
+
+```sql
+CREATE TABLE IF NOT EXISTS `currencies` (
+  `id` int(10) unsigned NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
+  `symbol` varchar(255) NOT NULL,
+  `precision` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
+  `thousand_separator` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
+  `decimal_separator` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
+  `code` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL
+) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8;
+```
+
+## Currency Fields
+
+<ParamField path="id" type="integer">
+  Unique identifier for the currency (1-32)
+</ParamField>
+
+<ParamField path="name" type="string">
+  Full currency name (e.g., "US Dollar", "Euro")
+</ParamField>
+
+<ParamField path="symbol" type="string">
+  Currency symbol displayed on invoices (e.g., "$", "€", "£")
+</ParamField>
+
+<ParamField path="precision" type="string">
+  Number of decimal places (typically "2" for cents, "0" for currencies without subunits)
+</ParamField>
+
+<ParamField path="thousand_separator" type="string">
+  Character used to separate thousands (e.g., "," or "." or "'")
+</ParamField>
+
+<ParamField path="decimal_separator" type="string">
+  Character used for decimal point (e.g., "." or ",")
+</ParamField>
+
+<ParamField path="code" type="string">
+  ISO 4217 currency code (e.g., "USD", "EUR", "GBP")
+</ParamField>
+
+## Supported Currencies
+
+Simple Invoice includes 32 pre-configured currencies:
+
+<AccordionGroup>
+  <Accordion title="Americas (7 currencies)" icon="earth-americas">
+    | ID | Currency | Symbol | Code | Format |
+    |----|----------|--------|------|--------|
+    | 1 | US Dollar | $ | USD | 1,000.00 |
+    | 9 | Canadian Dollar | C$ | CAD | 1,000.00 |
+    | 18 | Quetzal Guatemalteco | Q | GTQ | 1,000.00 |
+    | 20 | Real Brasileño | R$ | BRL | 1.000,00 |
+    | 23 | Peso Argentino | $ | ARS | 1.000,00 |
+    | 28 | Peso Mexicano | $ | MXN | 1,000.00 |
+    | 30 | Peso Colombiano | $ | COP | 1.000,00 |
+  </Accordion>
+  
+  <Accordion title="Europe (6 currencies)" icon="earth-europe">
+    | ID | Currency | Symbol | Code | Format |
+    |----|----------|--------|------|--------|
+    | 2 | Libra Esterlina | £ | GBP | 1,000.00 |
+    | 3 | Euro | € | EUR | 1.000,00 |
+    | 5 | Danish Krone | kr | DKK | 1.000,00 |
+    | 7 | Swedish Krona | kr | SEK | 1.000,00 |
+    | 14 | Norske Kroner | kr | NOK | 1.000,00 |
+    | 17 | Swiss Franc | CHF | CHF | 1'000.00 |
+  </Accordion>
+  
+  <Accordion title="Asia & Pacific (9 currencies)" icon="earth-asia">
+    | ID | Currency | Symbol | Code | Format |
+    |----|----------|--------|------|--------|
+    | 10 | Philippine Peso | P | PHP | 1,000.00 |
+    | 11 | Indian Rupee | Rs. | INR | 1,000.00 |
+    | 12 | Australian Dollar | $ | AUD | 1,000.00 |
+    | 13 | Singapore Dollar | SGD | SGD | 1,000.00 |
+    | 15 | New Zealand Dollar | $ | NZD | 1,000.00 |
+    | 16 | Vietnamese Dong | VND | VND | 1.000 |
+    | 19 | Malaysian Ringgit | RM | MYR | 1,000.00 |
+    | 21 | Thai Baht | THB | THB | 1,000.00 |
+    | 26 | Hong Kong Dollar | $ | HKD | 1,000.00 |
+    | 27 | Indonesian Rupiah | Rp | IDR | 1,000.00 |
+    | 32 | Chinese Renminbi | RMB | CNY | 1,000.00 |
+  </Accordion>
+  
+  <Accordion title="Africa & Middle East (10 currencies)" icon="earth-africa">
+    | ID | Currency | Symbol | Code | Format |
+    |----|----------|--------|------|--------|
+    | 4 | South African Rand | R | ZAR | 1.000,00 |
+    | 6 | Israeli Shekel | NIS | ILS | 1,000.00 |
+    | 8 | Kenyan Shilling | KSh | KES | 1,000.00 |
+    | 22 | Nigerian Naira | NGN | NGN | 1,000.00 |
+    | 24 | Bangladeshi Taka | Tk | BDT | 1,000.00 |
+    | 25 | United Arab Emirates Dirham | DH | AED | 1,000.00 |
+    | 29 | Egyptian Pound | £ | EGP | 1,000.00 |
+    | 31 | West African Franc | CFA | XOF | 1,000.00 |
+  </Accordion>
+</AccordionGroup>
+
+## Selecting Currency
+
+The company currency is selected in the company profile configuration. The system queries available currencies and populates a dropdown:
+
+```php
+<select class='form-control input-sm' name="moneda" required>
+  <?php 
+    $sql="select name, symbol from currencies group by symbol order by name";
+    $query=mysqli_query($con,$sql);
+    while($rw=mysqli_fetch_array($query)){
+      $simbolo=$rw['symbol'];
+      $moneda=$rw['name'];
+      if ($row['moneda']==$simbolo){
+        $selected="selected";
+      } else {
+        $selected="";
+      }
+      ?>
+      <option value="<?php echo $simbolo;?>" <?php echo $selected;?>>
+        <?php echo ($simbolo);?>
+      </option>
+      <?php
+    }
+  ?>
+</select>
+```
+
+<Note>
+  The currency symbol is stored in the `perfil.moneda` field (up to 6 characters). This symbol is then used throughout the application to display prices.
+</Note>
+
+## Currency Formatting Examples
+
+Different currencies use different formatting conventions:
+
+### US Dollar Format
+```sql
+('US Dollar', '$', '2', ',', '.', 'USD')
+```
+**Display**: $1,234.56
+
+### Euro Format
+```sql
+('Euro', '€', '2', '.', ',', 'EUR')
+```
+**Display**: €1.234,56
+
+### Swiss Franc Format
+```sql
+('Swiss Franc', 'CHF ', '2', "'", '.', 'CHF')
+```
+**Display**: CHF 1'234.56
+
+### Vietnamese Dong Format
+```sql
+('Vietnamese Dong', 'VND ', '0', '.', ',', 'VND')
+```
+**Display**: VND 1.234 (no decimal places)
+
+## Adding Custom Currencies
+
+To add a new currency to the system:
+
+<Steps>
+  <Step title="Insert Currency Record">
+    Add a new record to the `currencies` table:
+    
+    ```sql
+    INSERT INTO `currencies` 
+      (`id`, `name`, `symbol`, `precision`, `thousand_separator`, `decimal_separator`, `code`) 
+    VALUES 
+      (33, 'Japanese Yen', '¥', '0', ',', '.', 'JPY');
+    ```
+  </Step>
+  
+  <Step title="Configure Formatting">
+    - Set `precision` to "0" for currencies without cents/pence
+    - Set `precision` to "2" for most major currencies
+    - Set `precision` to "3" for currencies like Kuwaiti Dinar
+  </Step>
+  
+  <Step title="Select in Profile">
+    The new currency will automatically appear in the company profile currency dropdown
+  </Step>
+</Steps>
+
+## Currency Data Structure
+
+Here are some real examples from the database:
+
+```sql
+INSERT INTO `currencies` VALUES
+(1, 'US Dollar', '$', '2', ',', '.', 'USD'),
+(3, 'Euro', '€', '2', '.', ',', 'EUR'),
+(11, 'Indian Rupee', 'Rs. ', '2', ',', '.', 'INR'),
+(16, 'Vietnamese Dong', 'VND ', '0', '.', ',', 'VND'),
+(17, 'Swiss Franc', 'CHF ', '2', "'", '.', 'CHF'),
+(20, 'Real Brasileño', 'R$', '2', '.', ',', 'BRL'),
+(28, 'Peso Mexicano', '$', '2', ',', '.', 'MXN'),
+(32, 'Chinese Renminbi', 'RMB ', '2', ',', '.', 'CNY');
+```
+
+## Currency Query
+
+To retrieve all currencies ordered by name:
+
+```php
+$sql = "select name, symbol from currencies group by symbol order by name";
+$query = mysqli_query($con, $sql);
+while($rw = mysqli_fetch_array($query)){
+  $symbol = $rw['symbol'];
+  $name = $rw['name'];
+  // Display or process currency
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Precision" icon="decimal">
+    Use "2" for most currencies, "0" for currencies without decimal subunits (like Japanese Yen or Vietnamese Dong)
+  </Card>
+  
+  <Card title="Separators" icon="divide">
+    Respect regional conventions:
+    - US/UK: comma for thousands, dot for decimal (1,000.00)
+    - EU: dot for thousands, comma for decimal (1.000,00)
+  </Card>
+  
+  <Card title="Symbols" icon="at">
+    Include trailing space for multi-character symbols (e.g., "CHF ", "RMB ") for proper display formatting
+  </Card>
+  
+  <Card title="ISO Codes" icon="code">
+    Always use standard ISO 4217 currency codes for the `code` field
+  </Card>
+</CardGroup>
+
+<Warning>
+  Changing the currency after creating invoices may cause display inconsistencies. Set your currency before generating invoices.
+</Warning>

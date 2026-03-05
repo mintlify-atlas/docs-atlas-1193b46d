@@ -1,0 +1,420 @@
+---
+title: 'Invoice Creation'
+description: 'Complete workflow for creating and editing invoices in Simple Invoice'
+icon: 'file-invoice'
+---
+
+## Overview
+
+The invoice creation system provides a comprehensive workflow for generating invoices with client selection, product line items, payment terms, and automatic calculations. The system supports multiple payment methods and real-time totals calculation.
+
+## Invoice Database Structure
+
+Invoices are stored across two related tables:
+
+### Main Invoice Table
+
+```sql simple_invoice.sql
+CREATE TABLE IF NOT EXISTS `facturas` (
+  `id_factura` int(11) NOT NULL AUTO_INCREMENT,
+  `numero_factura` int(11) NOT NULL,
+  `fecha_factura` datetime NOT NULL,
+  `id_cliente` int(11) NOT NULL,
+  `id_vendedor` int(11) NOT NULL,
+  `condiciones` varchar(30) NOT NULL,
+  `total_venta` varchar(20) NOT NULL,
+  `estado_factura` tinyint(1) NOT NULL,
+  PRIMARY KEY (`id_factura`),
+  UNIQUE KEY `numero_cotizacion` (`numero_factura`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+
+### Invoice Detail Table
+
+```sql simple_invoice.sql
+CREATE TABLE IF NOT EXISTS `detalle_factura` (
+  `id_detalle` int(11) NOT NULL AUTO_INCREMENT,
+  `numero_factura` int(11) NOT NULL,
+  `id_producto` int(11) NOT NULL,
+  `cantidad` int(11) NOT NULL,
+  `precio_venta` double NOT NULL,
+  PRIMARY KEY (`id_detalle`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+
+## New Invoice Interface
+
+The new invoice page (`nueva_factura.php`) provides the complete invoice creation interface:
+
+```php nueva_factura.php
+<div class="panel panel-info">
+    <div class="panel-heading">
+        <h4><i class='glyphicon glyphicon-edit'></i> Nueva Factura</h4>
+    </div>
+    <div class="panel-body">
+        <form class="form-horizontal" role="form" id="datos_factura">
+            <!-- Invoice form fields -->
+        </form>
+    </div>
+</div>
+```
+
+## Client Selection with Autocomplete
+
+Clients are selected using jQuery UI autocomplete functionality:
+
+```php nueva_factura.php
+<div class="form-group row">
+    <label for="nombre_cliente" class="col-md-1 control-label">Cliente</label>
+    <div class="col-md-3">
+        <input type="text" class="form-control input-sm" id="nombre_cliente" 
+               placeholder="Selecciona un cliente" required>
+        <input id="id_cliente" type='hidden'>
+    </div>
+    <label for="tel1" class="col-md-1 control-label">Teléfono</label>
+    <div class="col-md-2">
+        <input type="text" class="form-control input-sm" id="tel1" 
+               placeholder="Teléfono" readonly>
+    </div>
+    <label for="mail" class="col-md-1 control-label">Email</label>
+    <div class="col-md-3">
+        <input type="text" class="form-control input-sm" id="mail" 
+               placeholder="Email" readonly>
+    </div>
+</div>
+```
+
+### Autocomplete Implementation
+
+```javascript nueva_factura.php
+$("#nombre_cliente").autocomplete({
+    source: "./ajax/autocomplete/clientes.php",
+    minLength: 2,
+    select: function(event, ui) {
+        event.preventDefault();
+        $('#id_cliente').val(ui.item.id_cliente);
+        $('#nombre_cliente').val(ui.item.nombre_cliente);
+        $('#tel1').val(ui.item.telefono_cliente);
+        $('#mail').val(ui.item.email_cliente);
+    }
+});
+```
+
+<Info>
+Autocomplete activates after typing 2 characters and automatically populates the client's phone and email fields.
+</Info>
+
+### Keyboard Event Handling
+
+The system clears hidden fields when the client name is modified:
+
+```javascript nueva_factura.php
+$("#nombre_cliente").on("keydown", function(event) {
+    if (event.keyCode == $.ui.keyCode.LEFT || 
+        event.keyCode == $.ui.keyCode.RIGHT || 
+        event.keyCode == $.ui.keyCode.UP || 
+        event.keyCode == $.ui.keyCode.DOWN || 
+        event.keyCode == $.ui.keyCode.DELETE || 
+        event.keyCode == $.ui.keyCode.BACKSPACE) {
+        $("#id_cliente").val("");
+        $("#tel1").val("");
+        $("#mail").val("");
+    }
+    
+    if (event.keyCode == $.ui.keyCode.DELETE) {
+        $("#nombre_cliente").val("");
+        $("#id_cliente").val("");
+        $("#tel1").val("");
+        $("#mail").val("");
+    }
+});
+```
+
+## Vendor and Date Selection
+
+The invoice includes vendor and date information:
+
+```php nueva_factura.php
+<div class="form-group row">
+    <label for="empresa" class="col-md-1 control-label">Vendedor</label>
+    <div class="col-md-3">
+        <select class="form-control input-sm" id="id_vendedor">
+            <?php
+            $sql_vendedor = mysqli_query($con, "SELECT * FROM users ORDER BY lastname");
+            while ($rw = mysqli_fetch_array($sql_vendedor)) {
+                $id_vendedor = $rw["user_id"];
+                $nombre_vendedor = $rw["firstname"] . " " . $rw["lastname"];
+                $selected = ($id_vendedor == $_SESSION['user_id']) ? "selected" : "";
+                ?>
+                <option value="<?php echo $id_vendedor?>" <?php echo $selected;?>>
+                    <?php echo $nombre_vendedor?>
+                </option>
+            <?php } ?>
+        </select>
+    </div>
+    <label for="tel2" class="col-md-1 control-label">Fecha</label>
+    <div class="col-md-2">
+        <input type="text" class="form-control input-sm" id="fecha" 
+               value="<?php echo date('d/m/Y');?>" readonly>
+    </div>
+</div>
+```
+
+<Note>
+The vendor defaults to the currently logged-in user, and the date is automatically set to today.
+</Note>
+
+## Payment Conditions
+
+Simple Invoice supports four payment methods:
+
+```php nueva_factura.php
+<label for="email" class="col-md-1 control-label">Pago</label>
+<div class="col-md-3">
+    <select class='form-control input-sm' id="condiciones">
+        <option value="1">Efectivo</option>
+        <option value="2">Cheque</option>
+        <option value="3">Transferencia bancaria</option>
+        <option value="4">Crédito</option>
+    </select>
+</div>
+```
+
+The payment conditions are stored as integers and displayed appropriately in PDFs:
+
+```php pdf/documentos/res/factura_html.php
+<?php 
+if ($condiciones == 1) { echo "Efectivo"; }
+elseif ($condiciones == 2) { echo "Cheque"; }
+elseif ($condiciones == 3) { echo "Transferencia bancaria"; }
+elseif ($condiciones == 4) { echo "Crédito"; }
+?>
+```
+
+## Action Buttons
+
+The invoice form provides several action buttons:
+
+```php nueva_factura.php
+<div class="col-md-12">
+    <div class="pull-right">
+        <button type="button" class="btn btn-default" data-toggle="modal" data-target="#nuevoProducto">
+            <span class="glyphicon glyphicon-plus"></span> Nuevo producto
+        </button>
+        <button type="button" class="btn btn-default" data-toggle="modal" data-target="#nuevoCliente">
+            <span class="glyphicon glyphicon-user"></span> Nuevo cliente
+        </button>
+        <button type="button" class="btn btn-default" data-toggle="modal" data-target="#myModal">
+            <span class="glyphicon glyphicon-search"></span> Agregar productos
+        </button>
+        <button type="submit" class="btn btn-default">
+            <span class="glyphicon glyphicon-print"></span> Imprimir
+        </button>
+    </div>
+</div>
+```
+
+## Product Line Items
+
+Products are added to the invoice and stored temporarily in the `tmp` table:
+
+```php ajax/agregar_facturacion.php
+$session_id = session_id();
+
+if (!empty($id) and !empty($cantidad) and !empty($precio_venta)) {
+    $insert_tmp = mysqli_query($con, 
+        "INSERT INTO tmp (id_producto, cantidad_tmp, precio_tmp, session_id) 
+         VALUES ('$id', '$cantidad', '$precio_venta', '$session_id')");
+}
+```
+
+### Removing Line Items
+
+```php ajax/agregar_facturacion.php
+if (isset($_GET['id'])) {
+    $id_tmp = intval($_GET['id']);
+    $delete = mysqli_query($con, "DELETE FROM tmp WHERE id_tmp='" . $id_tmp . "'");
+}
+```
+
+## Calculation Logic
+
+The system automatically calculates subtotal, tax, and total:
+
+### Line Item Totals
+
+```php ajax/agregar_facturacion.php
+$sumador_total = 0;
+$sql = mysqli_query($con, 
+    "SELECT * FROM products, tmp 
+     WHERE products.id_producto = tmp.id_producto 
+     AND tmp.session_id = '" . $session_id . "'");
+
+while ($row = mysqli_fetch_array($sql)) {
+    $cantidad = $row['cantidad_tmp'];
+    $precio_venta = $row['precio_tmp'];
+    
+    // Format and clean price
+    $precio_venta_f = number_format($precio_venta, 2);
+    $precio_venta_r = str_replace(",", "", $precio_venta_f);
+    
+    // Calculate line total
+    $precio_total = $precio_venta_r * $cantidad;
+    $precio_total_f = number_format($precio_total, 2);
+    $precio_total_r = str_replace(",", "", $precio_total_f);
+    
+    // Add to running total
+    $sumador_total += $precio_total_r;
+}
+```
+
+### Tax and Final Total
+
+```php ajax/agregar_facturacion.php
+// Get tax rate from company profile
+$impuesto = get_row('perfil', 'impuesto', 'id_perfil', 1);
+
+// Calculate subtotal
+$subtotal = number_format($sumador_total, 2, '.', '');
+
+// Calculate tax
+$total_iva = ($subtotal * $impuesto) / 100;
+$total_iva = number_format($total_iva, 2, '.', '');
+
+// Calculate final total
+$total_factura = $subtotal + $total_iva;
+```
+
+### Display Totals
+
+```php ajax/agregar_facturacion.php
+echo '<tr>';
+echo '<td class="text-right" colspan=4>SUBTOTAL ' . $simbolo_moneda . '</td>';
+echo '<td class="text-right">' . number_format($subtotal, 2) . '</td>';
+echo '<td></td>';
+echo '</tr>';
+
+echo '<tr>';
+echo '<td class="text-right" colspan=4>IVA (' . $impuesto . ')% ' . $simbolo_moneda . '</td>';
+echo '<td class="text-right">' . number_format($total_iva, 2) . '</td>';
+echo '<td></td>';
+echo '</tr>';
+
+echo '<tr>';
+echo '<td class="text-right" colspan=4>TOTAL ' . $simbolo_moneda . '</td>';
+echo '<td class="text-right">' . number_format($total_factura, 2) . '</td>';
+echo '<td></td>';
+echo '</tr>';
+```
+
+<Info>
+Tax rates are configured in the company profile settings and apply automatically to all invoices.
+</Info>
+
+## Editing Invoices
+
+Existing invoices can be edited via `editar_factura.php`:
+
+```php editar_factura.php
+if (isset($_GET['id_factura'])) {
+    $id_factura = intval($_GET['id_factura']);
+    $campos = "clientes.id_cliente, clientes.nombre_cliente, clientes.telefono_cliente, 
+               clientes.email_cliente, facturas.id_vendedor, facturas.fecha_factura, 
+               facturas.condiciones, facturas.estado_factura, facturas.numero_factura";
+    
+    $sql_factura = mysqli_query($con, 
+        "SELECT $campos FROM facturas, clientes 
+         WHERE facturas.id_cliente = clientes.id_cliente 
+         AND id_factura = '" . $id_factura . "'");
+    
+    $count = mysqli_num_rows($sql_factura);
+    
+    if ($count == 1) {
+        $rw_factura = mysqli_fetch_array($sql_factura);
+        $id_cliente = $rw_factura['id_cliente'];
+        $nombre_cliente = $rw_factura['nombre_cliente'];
+        $telefono_cliente = $rw_factura['telefono_cliente'];
+        $email_cliente = $rw_factura['email_cliente'];
+        $id_vendedor_db = $rw_factura['id_vendedor'];
+        $fecha_factura = date("d/m/Y", strtotime($rw_factura['fecha_factura']));
+        $condiciones = $rw_factura['condiciones'];
+        $estado_factura = $rw_factura['estado_factura'];
+        $numero_factura = $rw_factura['numero_factura'];
+        
+        $_SESSION['id_factura'] = $id_factura;
+        $_SESSION['numero_factura'] = $numero_factura;
+    }
+}
+```
+
+### Invoice Status
+
+Invoices can be marked as paid or pending:
+
+```php editar_factura.php
+<select class='form-control input-sm' id="estado_factura" name="estado_factura">
+    <option value="1" <?php if ($estado_factura == 1) { echo "selected"; } ?>>Pagado</option>
+    <option value="2" <?php if ($estado_factura == 2) { echo "selected"; } ?>>Pendiente</option>
+</select>
+```
+
+## Invoice Workflow
+
+<Steps>
+  <Step title="Start New Invoice">
+    Navigate to "Nueva Factura" from the main menu
+  </Step>
+  <Step title="Select Client">
+    Type client name (minimum 2 characters) and select from autocomplete suggestions
+  </Step>
+  <Step title="Configure Invoice">
+    Select vendor, verify date, and choose payment method
+  </Step>
+  <Step title="Add Products">
+    Click "Agregar productos" to search and add line items to the invoice
+  </Step>
+  <Step title="Review Totals">
+    Verify subtotal, tax, and total calculations
+  </Step>
+  <Step title="Generate Invoice">
+    Click "Imprimir" to generate the PDF and save the invoice to the database
+  </Step>
+</Steps>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Client Autocomplete" icon="magnifying-glass">
+    Fast client selection with real-time search
+  </Card>
+  <Card title="Multiple Payment Methods" icon="credit-card">
+    Efectivo, Cheque, Transferencia, Crédito
+  </Card>
+  <Card title="Automatic Calculations" icon="calculator">
+    Real-time subtotal, tax, and total calculation
+  </Card>
+  <Card title="Session-based Items" icon="list">
+    Products stored in session until invoice is finalized
+  </Card>
+  <Card title="Invoice Editing" icon="pen">
+    Modify existing invoices and update status
+  </Card>
+  <Card title="Vendor Selection" icon="user-tie">
+    Assign invoices to specific sales representatives
+  </Card>
+</CardGroup>
+
+## Related Files
+
+- `nueva_factura.php` - New invoice creation interface
+- `editar_factura.php` - Edit existing invoice
+- `ajax/agregar_facturacion.php` - Add products to invoice
+- `ajax/autocomplete/clientes.php` - Client autocomplete search
+- `modal/buscar_productos.php` - Product search modal
+- `js/nueva_factura.js` - New invoice client-side logic
+- `js/editar_factura.js` - Edit invoice client-side logic
+- `js/VentanaCentrada.js` - Popup window helper
+
+<Warning>
+Products added to an invoice are stored in the `tmp` table with your session ID. Clearing your browser session before finalizing the invoice will lose these items.
+</Warning>

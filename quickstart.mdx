@@ -1,80 +1,346 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quick Start Guide"
+description: "Get from installation to your first invoice in minutes"
+icon: "rocket"
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This quick start guide will walk you through the essential steps to start using Simple Invoice, from your first login to generating your first professional invoice.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Before starting, ensure you have completed the [Installation](/installation) process and can access the login page.
 </Note>
+
+## First Login
+
+<Steps>
+  <Step title="Access the Login Page">
+    Navigate to your Simple Invoice installation in your web browser:
+    
+    ```
+    http://localhost/simple_invoice/
+    ```
+    
+    Or your production domain:
+    ```
+    https://yourdomain.com/
+    ```
+  </Step>
+  
+  <Step title="Log In with Default Credentials">
+    Use the default administrator credentials:
+    
+    - **Username:** `admin`
+    - **Password:** `admin`
+    
+    <Warning>
+      **Security Alert:** Change these default credentials immediately after your first login. Go to your user profile and update both the username and password.
+    </Warning>
+    
+    The authentication system uses PHP's `password_verify()` function for secure password hashing:
+    
+    ```php classes/Login.php
+    // Password verification from Login.php
+    if (password_verify($_POST['user_password'], $result_row->user_password_hash)) {
+        // Write user data into PHP SESSION
+        $_SESSION['user_id'] = $result_row->user_id;
+        $_SESSION['user_name'] = $result_row->user_name;
+        $_SESSION['user_email'] = $result_row->user_email;
+        $_SESSION['user_login_status'] = 1;
+    }
+    ```
+  </Step>
+  
+  <Step title="Change Your Password">
+    After logging in, immediately update your credentials:
+    
+    1. Click on your username in the navigation bar
+    2. Select **Profile** or **Settings**
+    3. Update your password
+    4. Optionally change your username and email
+    
+    The system uses bcrypt hashing for secure password storage.
+  </Step>
+</Steps>
+
+## Configure Your Company Profile
+
+Before creating invoices, set up your company information:
+
+<Steps>
+  <Step title="Navigate to Company Profile">
+    Access the company profile configuration page from the main navigation menu.
+  </Step>
+  
+  <Step title="Enter Company Information">
+    Fill in your business details:
+    
+    - **Company Name** (`nombre_empresa`)
+    - **Address** (`direccion`)
+    - **City** (`ciudad`)
+    - **Postal Code** (`codigo_postal`)
+    - **State/Province** (`estado`)
+    - **Phone** (`telefono`)
+    - **Email** (`email`)
+    - **Tax Rate** (`impuesto`) - Enter as a percentage (e.g., 13 for 13%)
+    - **Currency** - Select from 32+ supported currencies
+    
+    <Accordion title="View Company Profile Form Code">
+      ```php perfil.php
+      <input type="text" class="form-control" name="nombre_empresa" 
+             value="<?php echo $nombre_empresa;?>" required>
+      <input type="text" class="form-control" name="direccion" 
+             value="<?php echo $direccion;?>" required>
+      <input type="text" class="form-control" name="ciudad" 
+             value="<?php echo $ciudad;?>" required>
+      <input type="number" class="form-control" name="impuesto" 
+             value="<?php echo $impuesto;?>" required>
+      ```
+    </Accordion>
+  </Step>
+  
+  <Step title="Upload Company Logo">
+    Add your company logo to appear on invoices:
+    
+    - Supported formats: JPG, JPEG, PNG, GIF
+    - Maximum file size: 1MB
+    - Recommended size: 200x80 pixels
+    
+    The logo will be stored in the `img/` directory and referenced in the `perfil` table.
+  </Step>
+  
+  <Step title="Save Configuration">
+    Click **Save Changes** to store your company profile. This information will appear on all generated invoices.
+  </Step>
+</Steps>
+
+## Create Your First Client
+
+<Steps>
+  <Step title="Navigate to Clients">
+    Click on **Clients** or **Clientes** in the main navigation menu.
+  </Step>
+  
+  <Step title="Add New Client">
+    Click the **New Client** button to open the client creation form.
+    
+    Enter the client information:
+    - **Client Name** (`nombre_cliente`) - Required, must be unique
+    - **Phone** (`telefono_cliente`) - Up to 30 characters
+    - **Email** (`email_cliente`) - Up to 64 characters
+    - **Address** (`direccion_cliente`)
+    - **Status** (`status_cliente`) - Active (1) or Inactive (0)
+    
+    <Accordion title="View Client Creation Code">
+      ```php ajax/nuevo_cliente.php
+      $nombre_cliente = mysqli_real_escape_string($con, 
+          (strip_tags($_POST["nombre_cliente"], ENT_QUOTES)));
+      $telefono_cliente = mysqli_real_escape_string($con, 
+          (strip_tags($_POST["telefono_cliente"], ENT_QUOTES)));
+      $email_cliente = mysqli_real_escape_string($con, 
+          (strip_tags($_POST["email_cliente"], ENT_QUOTES)));
+      
+      $sql = "INSERT INTO clientes (nombre_cliente, telefono_cliente, 
+              email_cliente, direccion_cliente, status_cliente, date_added) 
+              VALUES ('$nombre_cliente','$telefono_cliente','$email_cliente',
+              '$direccion_cliente','1', NOW())";
+      ```
+    </Accordion>
+  </Step>
+  
+  <Step title="Save Client">
+    Click **Save** to create the client record. The client will now be available when creating invoices with autocomplete functionality.
+  </Step>
+</Steps>
+
+## Create Your First Product
+
+<Steps>
+  <Step title="Navigate to Products">
+    Click on **Products** or **Productos** in the main navigation.
+  </Step>
+  
+  <Step title="Add New Product">
+    Click **New Product** to open the product creation form.
+    
+    Enter product details:
+    - **Product Code** (`codigo_producto`) - Required, unique identifier (up to 20 chars)
+    - **Product Name** (`nombre_producto`) - Required (up to 255 chars)
+    - **Price** (`precio_producto`) - Numeric value
+    - **Status** - Active or Inactive
+    
+    <Accordion title="View Product Creation Code">
+      ```php ajax/nuevo_producto.php
+      $codigo_producto = mysqli_real_escape_string($con, 
+          (strip_tags($_POST["codigo_producto"], ENT_QUOTES)));
+      $nombre_producto = mysqli_real_escape_string($con, 
+          (strip_tags($_POST["nombre_producto"], ENT_QUOTES)));
+      $precio_producto = floatval($_POST['precio_producto']);
+      
+      $sql = "INSERT INTO products (codigo_producto, nombre_producto, 
+              status_producto, precio_producto, date_added) 
+              VALUES ('$codigo_producto','$nombre_producto','1',
+              '$precio_producto', NOW())";
+      ```
+    </Accordion>
+  </Step>
+  
+  <Step title="Save Product">
+    Click **Save** to add the product to your catalog. Products will be available for selection when creating invoices.
+  </Step>
+</Steps>
+
+## Generate Your First Invoice
+
+<Steps>
+  <Step title="Navigate to New Invoice">
+    Click **Invoices** → **New Invoice** (or **Nueva Factura**) in the navigation.
+  </Step>
+  
+  <Step title="Select Client">
+    Start typing the client name in the **Client** field. The autocomplete feature will show matching clients:
+    
+    ```javascript nueva_factura.php
+    $("#nombre_cliente").autocomplete({
+        source: "./ajax/autocomplete/clientes.php",
+        minLength: 2,
+        select: function(event, ui) {
+            event.preventDefault();
+            $('#id_cliente').val(ui.item.id_cliente);
+            $('#nombre_cliente').val(ui.item.nombre_cliente);
+            $('#tel1').val(ui.item.telefono_cliente);
+            $('#mail').val(ui.item.email_cliente);
+        }
+    });
+    ```
+    
+    Client phone and email will populate automatically.
+  </Step>
+  
+  <Step title="Select Vendor and Payment Method">
+    - **Vendor** (`id_vendedor`) - Defaults to the logged-in user
+    - **Date** (`fecha`) - Defaults to current date
+    - **Payment Method** (`condiciones`):
+      - Efectivo (Cash)
+      - Cheque (Check)
+      - Transferencia bancaria (Bank Transfer)
+      - Crédito (Credit)
+  </Step>
+  
+  <Step title="Add Products">
+    Click **Add Products** to open the product search modal.
+    
+    1. Search for products
+    2. Click on a product to add it to the invoice
+    3. Adjust quantity if needed
+    4. Products are temporarily stored in the `tmp` table during editing
+    
+    The system automatically calculates:
+    - Subtotal (sum of all line items)
+    - Tax (based on company profile tax rate)
+    - Total (subtotal + tax)
+  </Step>
+  
+  <Step title="Review and Generate">
+    Review the invoice details:
+    - Verify all products and quantities
+    - Check calculations
+    - Confirm client information
+    
+    Click **Print** or **Generate** to create the invoice.
+  </Step>
+</Steps>
+
+## View and Print Invoice PDF
+
+After generating an invoice:
+
+<Steps>
+  <Step title="Invoice Saved to Database">
+    The system saves the invoice to two tables:
+    
+    - `facturas` - Invoice header with client, date, total
+    - `detalle_factura` - Line items with products and quantities
+    
+    ```php ajax/agregar_facturacion.php
+    $insert = mysqli_query($con, "INSERT INTO facturas (
+        numero_factura, fecha_factura, id_cliente, id_vendedor, 
+        condiciones, total_venta, estado_factura
+    ) VALUES (
+        '$numero_factura', NOW(), '$id_cliente', '$id_vendedor',
+        '$condiciones', '$total_venta', 1
+    )");
+    ```
+  </Step>
+  
+  <Step title="Generate PDF">
+    The system uses TCPDF to generate a professional PDF invoice:
+    
+    - Company logo (if uploaded)
+    - Company information from profile
+    - Client details
+    - Product line items with prices
+    - Subtotal, tax calculation, and total
+    - Invoice number and date
+    
+    ```php pdf/documentos/factura_pdf.php
+    require_once(dirname(__FILE__).'/../html2pdf.class.php');
+    $html2pdf = new HTML2PDF('P', 'letter', 'en', array(0, 0, 0, 0));
+    $html2pdf->writeHTML($html, false);
+    $html2pdf->Output('Invoice_' . $numero_factura . '.pdf');
+    ```
+  </Step>
+  
+  <Step title="View or Download">
+    The PDF opens in your browser. You can:
+    - Print directly
+    - Save to your computer
+    - Email to the client
+  </Step>
+</Steps>
+
+## Multi-Currency Support
+
+Simple Invoice supports 32+ currencies out of the box:
+
+<Accordion title="View Supported Currencies">
+  - **Americas:** USD, CAD, BRL, MXN, ARS, COP, GTQ
+  - **Europe:** EUR, GBP, CHF, SEK, NOK, DKK
+  - **Asia:** JPY, CNY, INR, PHP, THB, VND, IDR, MYR, SGD, HKD
+  - **Africa & Middle East:** ZAR, EGP, NGN, AED, ILS
+  - And more...
+  
+  Each currency includes:
+  - Symbol (e.g., $, €, £)
+  - Precision (decimal places)
+  - Thousand separator
+  - Decimal separator
+  - ISO code
+</Accordion>
+
+To use a different currency:
+1. Go to **Company Profile**
+2. Select your preferred currency from the dropdown
+3. All new invoices will use the selected currency format
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Explore Features" icon="star" href="/features/user-management">
+    Learn about user management, client operations, and advanced features.
+  </Card>
+  <Card title="Configure Settings" icon="gear" href="/configuration/database">
+    Customize database settings, company profile, and currency options.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/clients">
+    Explore AJAX endpoints for programmatic access.
+  </Card>
+  <Card title="Deploy to Production" icon="server" href="/deployment/production">
+    Production deployment best practices and security hardening.
+  </Card>
+</CardGroup>
+
+<Tip>
+  **Pro Tip:** Back up your database regularly, especially before major updates. The `simple_invoice` database contains all your business data including clients, products, and invoice history.
+</Tip>

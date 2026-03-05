@@ -1,0 +1,388 @@
+---
+title: Installation
+description: Step-by-step guide to installing Simple Invoice on Windows, Linux, and other platforms
+---
+
+## Prerequisites
+
+Before installing Simple Invoice, ensure you have:
+
+- PHP 5.3.7 or higher
+- MySQL 5.6 or higher
+- Web server (Apache, Nginx, or IIS with PHP support)
+- phpMyAdmin (recommended for database management)
+
+## Installation Methods
+
+Choose the installation method that best fits your environment:
+
+<Tabs>
+  <Tab title="Windows (XAMPP)">
+    Recommended for local development on Windows
+  </Tab>
+  <Tab title="Linux (Apache)">
+    For production deployment on Linux servers
+  </Tab>
+  <Tab title="Docker">
+    Containerized deployment (advanced users)
+  </Tab>
+</Tabs>
+
+## Windows Installation (XAMPP)
+
+The easiest way to run Simple Invoice on Windows is using XAMPP.
+
+<Steps>
+  <Step title="Download Source Files">
+    Download the Simple Invoice source files from the repository and extract them.
+  </Step>
+
+  <Step title="Copy to XAMPP Directory">
+    Copy and extract the files to `C:\xampp\htdocs\`. You should have a folder called `simple_invoice`.
+    
+    ```bash
+    C:\xampp\htdocs\simple_invoice\
+    ```
+    
+    The application will be accessible at: `http://localhost/simple_invoice/`
+  </Step>
+
+  <Step title="Start XAMPP Services">
+    Open XAMPP Control Panel and start:
+    - Apache (web server)
+    - MySQL (database server)
+    
+    <Note>
+    Ensure both services show green "Running" status before proceeding.
+    </Note>
+  </Step>
+
+  <Step title="Create Database">
+    Access phpMyAdmin at `http://localhost/phpmyadmin/` and create a new database:
+    
+    1. Click on "New" in the left sidebar
+    2. Enter database name: `simple_invoice`
+    3. Select collation: `utf8_general_ci`
+    4. Click "Create"
+  </Step>
+
+  <Step title="Import Database Tables">
+    Import the database schema:
+    
+    1. Select the `simple_invoice` database
+    2. Click on the "Import" tab
+    3. Click "Choose File" and select `simple_invoice.sql` from the root directory
+    4. Click "Go" to import
+    
+    <Note>
+    The SQL file is located at: `simple_invoice/simple_invoice.sql`
+    </Note>
+  </Step>
+
+  <Step title="Configure Database Connection">
+    Edit the database configuration file at `simple_invoice/config/db.php`:
+    
+    ```php
+    <?php
+    /*Datos de conexion a la base de datos*/
+    define('DB_HOST', 'localhost');  // Usually "127.0.0.1" or "localhost"
+    define('DB_USER', 'root');       // Your database username
+    define('DB_PASS', '');           // Your database password
+    define('DB_NAME', 'simple_invoice'); // Database name
+    ?>
+    ```
+    
+    For XAMPP default installation, the settings above should work without changes.
+  </Step>
+
+  <Step title="Access the Application">
+    Open your web browser and navigate to:
+    
+    ```
+    http://localhost/simple_invoice/
+    ```
+    
+    You should see the login page.
+  </Step>
+</Steps>
+
+## Linux Installation (Apache)
+
+For production deployment on Linux servers with Apache.
+
+<Steps>
+  <Step title="Install Required Packages">
+    Install Apache, PHP, and MySQL:
+    
+    ```bash
+    # Ubuntu/Debian
+    sudo apt update
+    sudo apt install apache2 php php-mysql mysql-server
+    sudo apt install php-mbstring php-xml php-gd
+    
+    # CentOS/RHEL
+    sudo yum install httpd php php-mysql mariadb-server
+    sudo yum install php-mbstring php-xml php-gd
+    ```
+  </Step>
+
+  <Step title="Copy Application Files">
+    Copy Simple Invoice to your web root:
+    
+    ```bash
+    sudo cp -r simple_invoice /var/www/html/
+    sudo chown -R www-data:www-data /var/www/html/simple_invoice
+    sudo chmod -R 755 /var/www/html/simple_invoice
+    ```
+  </Step>
+
+  <Step title="Create MySQL Database">
+    Log into MySQL and create the database:
+    
+    ```bash
+    sudo mysql -u root -p
+    ```
+    
+    ```sql
+    CREATE DATABASE simple_invoice CHARACTER SET utf8 COLLATE utf8_general_ci;
+    CREATE USER 'invoiceuser'@'localhost' IDENTIFIED BY 'your_password';
+    GRANT ALL PRIVILEGES ON simple_invoice.* TO 'invoiceuser'@'localhost';
+    FLUSH PRIVILEGES;
+    EXIT;
+    ```
+  </Step>
+
+  <Step title="Import Database Schema">
+    Import the SQL file:
+    
+    ```bash
+    mysql -u invoiceuser -p simple_invoice < /var/www/html/simple_invoice/simple_invoice.sql
+    ```
+  </Step>
+
+  <Step title="Configure Database Connection">
+    Edit `/var/www/html/simple_invoice/config/db.php`:
+    
+    ```php
+    <?php
+    define('DB_HOST', 'localhost');
+    define('DB_USER', 'invoiceuser');
+    define('DB_PASS', 'your_password');
+    define('DB_NAME', 'simple_invoice');
+    ?>
+    ```
+  </Step>
+
+  <Step title="Configure Apache">
+    Create a virtual host (optional but recommended):
+    
+    ```apache
+    <VirtualHost *:80>
+        ServerName invoice.yourdomain.com
+        DocumentRoot /var/www/html/simple_invoice
+        
+        <Directory /var/www/html/simple_invoice>
+            Options Indexes FollowSymLinks
+            AllowOverride All
+            Require all granted
+        </Directory>
+        
+        ErrorLog ${APACHE_LOG_DIR}/invoice-error.log
+        CustomLog ${APACHE_LOG_DIR}/invoice-access.log combined
+    </VirtualHost>
+    ```
+    
+    Enable the site and restart Apache:
+    
+    ```bash
+    sudo a2ensite invoice.conf
+    sudo systemctl restart apache2
+    ```
+  </Step>
+</Steps>
+
+## Database Schema
+
+The `simple_invoice.sql` file creates the following tables:
+
+### Core Tables
+
+<CodeGroup>
+```sql Users Table
+CREATE TABLE IF NOT EXISTS `users` (
+  `user_id` int(11) NOT NULL AUTO_INCREMENT,
+  `firstname` varchar(20) COLLATE utf8_unicode_ci NOT NULL,
+  `lastname` varchar(20) COLLATE utf8_unicode_ci NOT NULL,
+  `user_name` varchar(64) COLLATE utf8_unicode_ci NOT NULL,
+  `user_password_hash` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
+  `user_email` varchar(64) COLLATE utf8_unicode_ci NOT NULL,
+  `date_added` datetime NOT NULL,
+  PRIMARY KEY (`user_id`),
+  UNIQUE KEY `user_name` (`user_name`),
+  UNIQUE KEY `user_email` (`user_email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+```
+
+```sql Clients Table
+CREATE TABLE IF NOT EXISTS `clientes` (
+  `id_cliente` int(11) NOT NULL AUTO_INCREMENT,
+  `nombre_cliente` varchar(255) NOT NULL,
+  `telefono_cliente` char(30) NOT NULL,
+  `email_cliente` varchar(64) NOT NULL,
+  `direccion_cliente` varchar(255) NOT NULL,
+  `status_cliente` tinyint(4) NOT NULL,
+  `date_added` datetime NOT NULL,
+  PRIMARY KEY (`id_cliente`),
+  UNIQUE KEY `codigo_producto` (`nombre_cliente`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+
+```sql Products Table
+CREATE TABLE IF NOT EXISTS `products` (
+  `id_producto` int(11) NOT NULL AUTO_INCREMENT,
+  `codigo_producto` char(20) NOT NULL,
+  `nombre_producto` char(255) NOT NULL,
+  `status_producto` tinyint(4) NOT NULL,
+  `date_added` datetime NOT NULL,
+  `precio_producto` double NOT NULL,
+  PRIMARY KEY (`id_producto`),
+  UNIQUE KEY `codigo_producto` (`codigo_producto`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+
+```sql Invoices Table
+CREATE TABLE IF NOT EXISTS `facturas` (
+  `id_factura` int(11) NOT NULL AUTO_INCREMENT,
+  `numero_factura` int(11) NOT NULL,
+  `fecha_factura` datetime NOT NULL,
+  `id_cliente` int(11) NOT NULL,
+  `id_vendedor` int(11) NOT NULL,
+  `condiciones` varchar(30) NOT NULL,
+  `total_venta` varchar(20) NOT NULL,
+  `estado_factura` tinyint(1) NOT NULL,
+  PRIMARY KEY (`id_factura`),
+  UNIQUE KEY `numero_cotizacion` (`numero_factura`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+</CodeGroup>
+
+### Default Data
+
+The SQL import creates a default admin user:
+
+```sql
+INSERT INTO `users` VALUES
+(1, 'Obed', 'Alvarado', 'admin', 
+ '$2y$10$MPVHzZ2ZPOWmtUUGCq3RXu31OTB.jo7M9LZ7PmPQYmgETSNn19ejO', 
+'admin@admin.com', '2016-05-21 15:06:00');
+```
+
+<Warning>
+**Security Notice:** The default admin password is `admin`. Change this immediately after first login.
+</Warning>
+
+## Post-Installation
+
+### Verify Installation
+
+After installation, verify everything is working:
+
+1. Navigate to your Simple Invoice URL
+2. You should see the login page
+3. Log in with default credentials (username: `admin`, password: `admin`)
+4. Check that all menu items are accessible:
+   - Facturas (Invoices)
+   - Clientes (Clients)
+   - Productos (Products)
+   - Usuarios (Users)
+
+### File Permissions
+
+Ensure proper file permissions (Linux/Unix):
+
+```bash
+# Set ownership
+sudo chown -R www-data:www-data /var/www/html/simple_invoice
+
+# Set directory permissions
+sudo find /var/www/html/simple_invoice -type d -exec chmod 755 {} \;
+
+# Set file permissions
+sudo find /var/www/html/simple_invoice -type f -exec chmod 644 {} \;
+
+# Make upload directories writable
+sudo chmod -R 775 /var/www/html/simple_invoice/img
+```
+
+### Configuration Options
+
+Key configuration files:
+
+- `config/db.php` - Database connection settings
+- `config/conexion.php` - Database connection function
+- `config/tcpdf_config.php` - PDF generation settings
+
+## Troubleshooting
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Cannot connect to database">
+    **Error:** `mysqli_connect(): (HY000/1045): Access denied`
+    
+    **Solution:** Verify credentials in `config/db.php` match your MySQL user and password.
+    
+    ```php
+    define('DB_USER', 'root');  // Check this
+    define('DB_PASS', '');      // And this
+    ```
+  </Accordion>
+
+  <Accordion title="White screen after login">
+    **Error:** Blank page or 500 error
+    
+    **Solution:** Enable PHP error reporting to see the actual error:
+    
+    ```php
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+    ```
+    
+    Add this to the top of `index.php` temporarily.
+  </Accordion>
+
+  <Accordion title="Database tables not created">
+    **Error:** Table doesn't exist errors
+    
+    **Solution:** Ensure you imported `simple_invoice.sql` correctly:
+    
+    ```bash
+    mysql -u root -p simple_invoice < simple_invoice.sql
+    ```
+    
+    Verify tables exist:
+    
+    ```sql
+    USE simple_invoice;
+    SHOW TABLES;
+    ```
+  </Accordion>
+
+  <Accordion title="PHP version too old">
+    **Error:** `Simple PHP Login does not run on a PHP version smaller than 5.3.7`
+    
+    **Solution:** Upgrade PHP to at least version 5.3.7, preferably 7.x or 8.x for better performance.
+    
+    ```bash
+    # Check current version
+    php -v
+    
+    # Ubuntu/Debian upgrade
+    sudo apt install php7.4
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that Simple Invoice is installed, proceed to the [Quick Start](/quickstart) guide to create your first invoice.

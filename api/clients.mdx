@@ -1,0 +1,290 @@
+---
+title: Clients API
+description: API endpoints for managing clients in Simple Invoice
+---
+
+## Overview
+
+The Clients API provides endpoints for creating, updating, searching, and deleting client records. All endpoints require authentication via session.
+
+## Create Client
+
+<RequestExample>
+
+```bash cURL
+curl -X POST https://your-domain.com/ajax/nuevo_cliente.php \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Cookie: PHPSESSID=your-session-id" \
+  -d "nombre=Acme Corp" \
+  -d "telefono=555-0123" \
+  -d "email=contact@acme.com" \
+  -d "direccion=123 Main St" \
+  -d "estado=1"
+```
+
+```php PHP
+<?php
+$data = [
+    'nombre' => 'Acme Corp',
+    'telefono' => '555-0123',
+    'email' => 'contact@acme.com',
+    'direccion' => '123 Main St',
+    'estado' => 1
+];
+
+$ch = curl_init('https://your-domain.com/ajax/nuevo_cliente.php');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField body="nombre" type="string" required>
+  Client name
+</ParamField>
+
+<ParamField body="telefono" type="string">
+  Client phone number (up to 30 characters)
+</ParamField>
+
+<ParamField body="email" type="string">
+  Client email address (up to 64 characters)
+</ParamField>
+
+<ParamField body="direccion" type="string">
+  Client address (up to 255 characters)
+</ParamField>
+
+<ParamField body="estado" type="integer" required>
+  Client status: `1` for active, `0` for inactive
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns HTML alert with success message: "Cliente ha sido ingresado satisfactoriamente."
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns HTML alert with error message if validation fails
+</ResponseField>
+
+---
+
+## Update Client
+
+<RequestExample>
+
+```bash cURL
+curl -X POST https://your-domain.com/ajax/editar_cliente.php \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Cookie: PHPSESSID=your-session-id" \
+  -d "mod_id=5" \
+  -d "mod_nombre=Acme Corporation" \
+  -d "mod_telefono=555-0123" \
+  -d "mod_email=info@acme.com" \
+  -d "mod_direccion=456 Market St" \
+  -d "mod_estado=1"
+```
+
+```php PHP
+<?php
+$data = [
+    'mod_id' => 5,
+    'mod_nombre' => 'Acme Corporation',
+    'mod_telefono' => '555-0123',
+    'mod_email' => 'info@acme.com',
+    'mod_direccion' => '456 Market St',
+    'mod_estado' => 1
+];
+
+$ch = curl_init('https://your-domain.com/ajax/editar_cliente.php');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField body="mod_id" type="integer" required>
+  Client ID to update
+</ParamField>
+
+<ParamField body="mod_nombre" type="string" required>
+  Updated client name
+</ParamField>
+
+<ParamField body="mod_telefono" type="string">
+  Updated phone number
+</ParamField>
+
+<ParamField body="mod_email" type="string">
+  Updated email address
+</ParamField>
+
+<ParamField body="mod_direccion" type="string">
+  Updated address
+</ParamField>
+
+<ParamField body="mod_estado" type="integer" required>
+  Updated status: `1` for active, `0` for inactive
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns HTML alert with message: "Cliente ha sido actualizado satisfactoriamente."
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns HTML alert with error message if validation fails
+</ResponseField>
+
+---
+
+## Search Clients
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/ajax/buscar_clientes.php?action=ajax&q=Acme&page=1" \
+  -H "Cookie: PHPSESSID=your-session-id"
+```
+
+```php PHP
+<?php
+$query = http_build_query([
+    'action' => 'ajax',
+    'q' => 'Acme',
+    'page' => 1
+]);
+
+$ch = curl_init('https://your-domain.com/ajax/buscar_clientes.php?' . $query);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField query="action" type="string" required>
+  Must be set to `"ajax"` to trigger search
+</ParamField>
+
+<ParamField query="q" type="string">
+  Search term to filter clients by name. Leave empty to return all clients.
+</ParamField>
+
+<ParamField query="page" type="integer">
+  Page number for pagination (default: 1, 10 results per page)
+</ParamField>
+
+<ResponseField name="html_table" type="html">
+  Returns HTML table with client data including:
+  - `id_cliente` - Client ID
+  - `nombre_cliente` - Client name
+  - `telefono_cliente` - Phone number
+  - `email_cliente` - Email address
+  - `direccion_cliente` - Address
+  - `status_cliente` - Status (1 = Active, 0 = Inactive)
+  - `date_added` - Date added (formatted as d/m/Y)
+</ResponseField>
+
+---
+
+## Delete Client
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/ajax/buscar_clientes.php?id=5" \
+  -H "Cookie: PHPSESSID=your-session-id"
+```
+
+```php PHP
+<?php
+$ch = curl_init('https://your-domain.com/ajax/buscar_clientes.php?id=5');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+?>
+```
+
+</RequestExample>
+
+<ParamField query="id" type="integer" required>
+  Client ID to delete
+</ParamField>
+
+<ResponseField name="success" type="html">
+  Returns success alert if client is deleted successfully
+</ResponseField>
+
+<ResponseField name="error" type="html">
+  Returns error alert if:
+  - Client has associated invoices (foreign key constraint)
+  - Database error occurs
+</ResponseField>
+
+<Note>
+  Clients cannot be deleted if they have associated invoices in the system.
+</Note>
+
+---
+
+## Autocomplete Clients
+
+<RequestExample>
+
+```bash cURL
+curl -X GET "https://your-domain.com/ajax/autocomplete/clientes.php?term=Acme" \
+  -H "Cookie: PHPSESSID=your-session-id"
+```
+
+```javascript JavaScript
+fetch('https://your-domain.com/ajax/autocomplete/clientes.php?term=Acme')
+  .then(response => response.json())
+  .then(data => console.log(data));
+```
+
+</RequestExample>
+
+<ParamField query="term" type="string" required>
+  Search term for autocomplete (partial client name)
+</ParamField>
+
+<ResponseField name="results" type="array">
+  Returns JSON array (max 50 results) with objects containing:
+  - `value` - Client name
+  - `id_cliente` - Client ID
+  - `nombre_cliente` - Client name
+  - `telefono_cliente` - Phone number
+  - `email_cliente` - Email address
+</ResponseField>
+
+<ResponseExample>
+
+```json Response
+[
+  {
+    "value": "Acme Corporation",
+    "id_cliente": "5",
+    "nombre_cliente": "Acme Corporation",
+    "telefono_cliente": "555-0123",
+    "email_cliente": "contact@acme.com"
+  },
+  {
+    "value": "Acme Industries",
+    "id_cliente": "12",
+    "nombre_cliente": "Acme Industries",
+    "telefono_cliente": "555-0456",
+    "email_cliente": "info@acmeindustries.com"
+  }
+]
+```
+
+</ResponseExample>

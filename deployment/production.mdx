@@ -1,0 +1,545 @@
+---
+title: Production Deployment
+description: Best practices for deploying Simple Invoice in production environments
+---
+
+## Overview
+
+Deploying Simple Invoice to production requires careful attention to security, performance, and reliability. This guide covers essential configuration and hardening steps.
+
+## Pre-Deployment Checklist
+
+Before deploying to production:
+
+- [ ] Change default database credentials
+- [ ] Secure `config/db.php` file permissions
+- [ ] Configure SSL/HTTPS
+- [ ] Set up automated backups
+- [ ] Configure PHP upload limits
+- [ ] Disable error display
+- [ ] Import database schema
+- [ ] Test file upload functionality
+
+## Security Configuration
+
+### 1. Database Credentials
+
+<Warning>
+  **Critical:** The default configuration uses `root` with an empty password. This must be changed before production deployment.
+</Warning>
+
+Update `config/db.php` with secure credentials:
+
+```php
+<?php
+/*Datos de conexion a la base de datos*/
+define('DB_HOST', 'localhost');
+define('DB_USER', 'invoice_user');  // Change from 'root'
+define('DB_PASS', 'strong_secure_password_here');  // Set a strong password
+define('DB_NAME', 'simple_invoice');
+?>
+```
+
+**Password requirements:**
+- Minimum 16 characters
+- Mix of uppercase, lowercase, numbers, and symbols
+- No dictionary words
+- Unique to this application
+
+### 2. File Permissions
+
+Set restrictive permissions on sensitive files:
+
+```bash
+# Configuration files - read-only for web server
+chmod 640 config/db.php
+chmod 640 config/conexion.php
+chown www-data:www-data config/*.php
+
+# Upload directories - writable
+chmod 755 img/
+chmod 755 pdf/documentos/
+chmod 755 pdf/documentos/res/
+
+# Application files - read-only
+find . -type f -name "*.php" ! -path "./config/*" ! -path "./img/*" ! -path "./pdf/documentos/*" -exec chmod 644 {} \;
+```
+
+<Note>
+  The application requires write access to `/img` for logo uploads and `/pdf/documentos` for invoice PDF generation.
+</Note>
+
+### 3. Database Security
+
+<Steps>
+  <Step title="Create dedicated database user">
+    ```sql
+    CREATE USER 'invoice_user'@'localhost' IDENTIFIED BY 'strong_password';
+    GRANT SELECT, INSERT, UPDATE, DELETE ON simple_invoice.* TO 'invoice_user'@'localhost';
+    FLUSH PRIVILEGES;
+    ```
+  </Step>
+
+  <Step title="Import database schema">
+    ```bash
+    mysql -u invoice_user -p simple_invoice < simple_invoice.sql
+    ```
+  </Step>
+
+  <Step title="Remove root access">
+    ```sql
+    -- Verify tables were created
+    USE simple_invoice;
+    SHOW TABLES;
+    
+    -- Tables: clientes, currencies, detalle_factura, facturas,
+    --         perfil, productos, users
+    ```
+  </Step>
+
+  <Step title="Secure MySQL configuration">
+    Add to `/etc/mysql/my.cnf`:
+    ```ini
+    [mysqld]
+    local-infile=0
+    skip-show-database
+    bind-address=127.0.0.1
+    ```
+  </Step>
+</Steps>
+
+### 4. SSL/HTTPS Setup
+
+<Warning>
+  **Required for production:** Always use HTTPS to protect user credentials and sensitive invoice data.
+</Warning>
+
+#### Apache Configuration
+
+```apache
+<VirtualHost *:443>
+    ServerName invoice.yourdomain.com
+    DocumentRoot /var/www/simple-invoice
+    
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/certs/invoice.crt
+    SSLCertificateKeyFile /etc/ssl/private/invoice.key
+    SSLCertificateChainFile /etc/ssl/certs/chain.pem
+    
+    # Security headers
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    
+    <Directory /var/www/simple-invoice>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+
+# Redirect HTTP to HTTPS
+<VirtualHost *:80>
+    ServerName invoice.yourdomain.com
+    Redirect permanent / https://invoice.yourdomain.com/
+</VirtualHost>
+```
+
+#### Nginx Configuration
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name invoice.yourdomain.com;
+    root /var/www/simple-invoice;
+    index index.php;
+    
+    ssl_certificate /etc/ssl/certs/invoice.crt;
+    ssl_certificate_key /etc/ssl/private/invoice.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    
+    # Security headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+    
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php5.6-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+    
+    # Deny access to sensitive files
+    location ~ /config/ {
+        deny all;
+        return 404;
+    }
+}
+
+# Redirect HTTP to HTTPS
+server {
+    listen 80;
+    server_name invoice.yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+```
+
+### 5. PHP Configuration
+
+#### Upload Limits
+
+The application uploads logos to `/img` with a 1MB limit (see `ajax/imagen_ajax.php:19`). Configure PHP accordingly:
+
+```ini
+; /etc/php/5.6/apache2/php.ini (or php-fpm/php.ini for Nginx)
+
+upload_max_filesize = 2M
+post_max_size = 3M
+max_execution_time = 30
+memory_limit = 128M
+
+; File upload security
+file_uploads = On
+allow_url_fopen = Off
+allow_url_include = Off
+```
+
+<Note>
+  Logo uploads support JPG, JPEG, PNG, and GIF formats. The validation is at `ajax/imagen_ajax.php:17`.
+</Note>
+
+#### Error Handling
+
+**Production settings:**
+
+```ini
+; Display errors - DISABLED for production
+display_errors = Off
+display_startup_errors = Off
+
+; Log errors instead
+log_errors = On
+error_log = /var/log/php/error.log
+
+; Error reporting level
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+```
+
+**Create log directory:**
+
+```bash
+mkdir -p /var/log/php
+chown www-data:www-data /var/log/php
+chmod 755 /var/log/php
+```
+
+### 6. Application Hardening
+
+#### Disable Directory Listing
+
+The application includes `index.php` files in most directories, but add this to your web server config:
+
+**Apache:**
+```apache
+Options -Indexes
+```
+
+**Nginx:**
+```nginx
+autoindex off;
+```
+
+#### Protect Configuration Files
+
+**Apache** - Create `.htaccess` in `/config`:
+```apache
+Order deny,allow
+Deny from all
+```
+
+**Nginx** - Already configured in the example above:
+```nginx
+location ~ /config/ {
+    deny all;
+    return 404;
+}
+```
+
+## Backup Strategies
+
+### Database Backups
+
+<Steps>
+  <Step title="Create backup script">
+    ```bash
+    #!/bin/bash
+    # /usr/local/bin/backup-invoice-db.sh
+    
+    BACKUP_DIR="/var/backups/simple-invoice"
+    DATE=$(date +%Y%m%d_%H%M%S)
+    DB_NAME="simple_invoice"
+    DB_USER="invoice_user"
+    DB_PASS="your_password"
+    
+    mkdir -p $BACKUP_DIR
+    
+    mysqldump -u $DB_USER -p$DB_PASS $DB_NAME | gzip > $BACKUP_DIR/db_$DATE.sql.gz
+    
+    # Keep last 30 days
+    find $BACKUP_DIR -name "db_*.sql.gz" -mtime +30 -delete
+    ```
+  </Step>
+
+  <Step title="Schedule with cron">
+    ```bash
+    # Daily at 2 AM
+    0 2 * * * /usr/local/bin/backup-invoice-db.sh
+    ```
+  </Step>
+
+  <Step title="Test restoration">
+    ```bash
+    # Restore from backup
+    gunzip < /var/backups/simple-invoice/db_20260305_020000.sql.gz | mysql -u invoice_user -p simple_invoice
+    ```
+  </Step>
+</Steps>
+
+### File Backups
+
+Backup uploaded files and PDFs:
+
+```bash
+#!/bin/bash
+# /usr/local/bin/backup-invoice-files.sh
+
+BACKUP_DIR="/var/backups/simple-invoice"
+APP_DIR="/var/www/simple-invoice"
+DATE=$(date +%Y%m%d_%H%M%S)
+
+tar -czf $BACKUP_DIR/files_$DATE.tar.gz \
+  $APP_DIR/img \
+  $APP_DIR/pdf/documentos \
+  $APP_DIR/config
+
+# Keep last 30 days
+find $BACKUP_DIR -name "files_*.tar.gz" -mtime +30 -delete
+```
+
+## Performance Optimization
+
+### PHP OpCache
+
+Enable OpCache for better performance:
+
+```ini
+; /etc/php/5.6/apache2/conf.d/10-opcache.ini
+
+opcache.enable=1
+opcache.memory_consumption=128
+opcache.interned_strings_buffer=8
+opcache.max_accelerated_files=4000
+opcache.revalidate_freq=60
+opcache.fast_shutdown=1
+```
+
+### Database Optimization
+
+```sql
+-- Analyze tables
+ANALYZE TABLE clientes, facturas, productos, detalle_factura;
+
+-- Optimize tables
+OPTIMIZE TABLE clientes, facturas, productos, detalle_factura;
+
+-- Add indexes for common queries
+CREATE INDEX idx_status ON clientes(status_cliente);
+CREATE INDEX idx_date ON facturas(date_added);
+```
+
+### Web Server Caching
+
+**Apache:**
+```apache
+# Enable compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript
+</IfModule>
+
+# Browser caching
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+</IfModule>
+```
+
+## Monitoring
+
+### Error Monitoring
+
+Monitor PHP error logs:
+
+```bash
+# Real-time monitoring
+tail -f /var/log/php/error.log
+
+# Alert on errors
+grep -i "fatal\|error" /var/log/php/error.log | mail -s "Invoice Errors" admin@yourdomain.com
+```
+
+### Database Monitoring
+
+```sql
+-- Check database size
+SELECT 
+    table_name AS 'Table',
+    ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'Size (MB)'
+FROM information_schema.TABLES
+WHERE table_schema = 'simple_invoice'
+ORDER BY (data_length + index_length) DESC;
+
+-- Check connection count
+SHOW STATUS WHERE Variable_name = 'Threads_connected';
+```
+
+### Disk Space Monitoring
+
+```bash
+# Monitor upload directories
+du -sh /var/www/simple-invoice/img
+du -sh /var/www/simple-invoice/pdf/documentos
+```
+
+## Update Procedures
+
+<Steps>
+  <Step title="Backup current installation">
+    ```bash
+    tar -czf simple-invoice-backup-$(date +%Y%m%d).tar.gz /var/www/simple-invoice
+    ```
+  </Step>
+
+  <Step title="Enable maintenance mode">
+    Create a temporary maintenance page or use web server redirect.
+  </Step>
+
+  <Step title="Update application files">
+    ```bash
+    cd /var/www/simple-invoice
+    git pull origin main
+    # Or extract new version archive
+    ```
+  </Step>
+
+  <Step title="Preserve configuration">
+    ```bash
+    # Ensure config/db.php is not overwritten
+    git update-index --assume-unchanged config/db.php
+    ```
+  </Step>
+
+  <Step title="Update database schema">
+    ```bash
+    mysql -u invoice_user -p simple_invoice < migrations/update.sql
+    ```
+  </Step>
+
+  <Step title="Clear OpCache">
+    ```bash
+    service apache2 reload
+    # Or for PHP-FPM:
+    service php5.6-fpm reload
+    ```
+  </Step>
+
+  <Step title="Test and restore access">
+    Verify the application is working, then disable maintenance mode.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Database Connection Errors
+
+Check `config/conexion.php:8-14` for connection logic. Common issues:
+
+```bash
+# Test MySQL connection
+mysql -u invoice_user -p -h localhost simple_invoice
+
+# Check MySQL is running
+systemctl status mysql
+
+# Verify credentials match config/db.php
+grep -E "DB_USER|DB_PASS|DB_NAME" config/db.php
+```
+
+### Upload Failures
+
+Logo upload validation at `ajax/imagen_ajax.php:17-20`:
+
+```bash
+# Check directory permissions
+ls -la img/
+
+# Verify PHP upload settings
+php -i | grep -E "upload_max_filesize|post_max_size"
+
+# Check web server error logs
+tail -f /var/log/apache2/error.log  # Apache
+tail -f /var/log/nginx/error.log    # Nginx
+```
+
+### Permission Issues
+
+```bash
+# Fix ownership
+chown -R www-data:www-data /var/www/simple-invoice
+
+# Fix permissions
+find /var/www/simple-invoice -type d -exec chmod 755 {} \;
+find /var/www/simple-invoice -type f -exec chmod 644 {} \;
+chmod 755 /var/www/simple-invoice/img
+chmod 755 /var/www/simple-invoice/pdf/documentos
+```
+
+## Security Checklist
+
+Before going live:
+
+- [ ] Changed default database credentials in `config/db.php`
+- [ ] Set `chmod 640` on `config/db.php`
+- [ ] Disabled PHP `display_errors`
+- [ ] Enabled HTTPS/SSL
+- [ ] Configured security headers
+- [ ] Set up automated backups
+- [ ] Tested backup restoration
+- [ ] Configured firewall rules
+- [ ] Disabled directory listing
+- [ ] Protected `/config` directory
+- [ ] Set correct file permissions
+- [ ] Enabled OpCache
+- [ ] Configured error logging
+- [ ] Tested file uploads (1MB limit)
+- [ ] Reviewed PHP upload settings
+
+## Next Steps
+
+- Set up monitoring and alerts
+- Configure fail2ban for brute force protection
+- Implement regular security audits
+- Plan disaster recovery procedures
+- Document your specific deployment configuration

@@ -1,0 +1,319 @@
+---
+title: 'Client Management'
+description: 'Managing customer information and client database in Simple Invoice'
+icon: 'address-book'
+---
+
+## Overview
+
+The client management system allows you to store, search, and manage customer information including contact details, addresses, and status. Clients are associated with invoices and can be quickly selected using autocomplete functionality.
+
+## Client Database Structure
+
+The `clientes` table stores all customer information:
+
+```sql simple_invoice.sql
+CREATE TABLE IF NOT EXISTS `clientes` (
+  `id_cliente` int(11) NOT NULL AUTO_INCREMENT,
+  `nombre_cliente` varchar(255) NOT NULL,
+  `telefono_cliente` char(30) NOT NULL,
+  `email_cliente` varchar(64) NOT NULL,
+  `direccion_cliente` varchar(255) NOT NULL,
+  `status_cliente` tinyint(4) NOT NULL,
+  `date_added` datetime NOT NULL,
+  PRIMARY KEY (`id_cliente`),
+  UNIQUE KEY `codigo_producto` (`nombre_cliente`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+
+<Info>
+Client names are unique in the database, enforced by the `UNIQUE KEY` constraint.
+</Info>
+
+## Client Management Interface
+
+The main client management page (`clientes.php`) provides a comprehensive interface for managing customers:
+
+```php clientes.php
+<div class="panel panel-info">
+    <div class="panel-heading">
+        <div class="btn-group pull-right">
+            <button type='button' class="btn btn-info" data-toggle="modal" data-target="#nuevoCliente">
+                <span class="glyphicon glyphicon-plus"></span> Nuevo Cliente
+            </button>
+        </div>
+        <h4><i class='glyphicon glyphicon-search'></i> Buscar Clientes</h4>
+    </div>
+</div>
+```
+
+### Search Functionality
+
+Clients can be searched by name with real-time results:
+
+```php clientes.php
+<form class="form-horizontal" role="form" id="datos_cotizacion">
+    <div class="form-group row">
+        <label for="q" class="col-md-2 control-label">Cliente</label>
+        <div class="col-md-5">
+            <input type="text" class="form-control" id="q" 
+                   placeholder="Nombre del cliente" onkeyup='load(1);'>
+        </div>
+        <div class="col-md-3">
+            <button type="button" class="btn btn-default" onclick='load(1);'>
+                <span class="glyphicon glyphicon-search"></span> Buscar
+            </button>
+        </div>
+    </div>
+</form>
+```
+
+## Adding New Clients
+
+New clients are created via AJAX submission to `ajax/nuevo_cliente.php`:
+
+```php ajax/nuevo_cliente.php
+if (empty($_POST['nombre'])) {
+    $errors[] = "Nombre vacío";
+} else if (!empty($_POST['nombre'])) {
+    // Sanitize inputs
+    $nombre = mysqli_real_escape_string($con, (strip_tags($_POST["nombre"], ENT_QUOTES)));
+    $telefono = mysqli_real_escape_string($con, (strip_tags($_POST["telefono"], ENT_QUOTES)));
+    $email = mysqli_real_escape_string($con, (strip_tags($_POST["email"], ENT_QUOTES)));
+    $direccion = mysqli_real_escape_string($con, (strip_tags($_POST["direccion"], ENT_QUOTES)));
+    $estado = intval($_POST['estado']);
+    $date_added = date("Y-m-d H:i:s");
+    
+    $sql = "INSERT INTO clientes (nombre_cliente, telefono_cliente, email_cliente, 
+            direccion_cliente, status_cliente, date_added) 
+            VALUES ('$nombre', '$telefono', '$email', '$direccion', '$estado', '$date_added')";
+    
+    $query_new_insert = mysqli_query($con, $sql);
+    
+    if ($query_new_insert) {
+        $messages[] = "Cliente ha sido ingresado satisfactoriamente.";
+    } else {
+        $errors[] = "Lo siento algo ha salido mal intenta nuevamente." . mysqli_error($con);
+    }
+}
+```
+
+<Note>
+All client inputs are sanitized using `mysqli_real_escape_string()` and `strip_tags()` to prevent SQL injection and XSS attacks.
+</Note>
+
+## Searching and Listing Clients
+
+The search functionality in `ajax/buscar_clientes.php` provides paginated results:
+
+```php ajax/buscar_clientes.php
+$q = mysqli_real_escape_string($con, (strip_tags($_REQUEST['q'], ENT_QUOTES)));
+$aColumns = array('nombre_cliente'); // Search columns
+$sTable = "clientes";
+$sWhere = "";
+
+if ($_GET['q'] != "") {
+    $sWhere = "WHERE (";
+    for ($i = 0; $i < count($aColumns); $i++) {
+        $sWhere .= $aColumns[$i] . " LIKE '%" . $q . "%' OR ";
+    }
+    $sWhere = substr_replace($sWhere, "", -3);
+    $sWhere .= ')';
+}
+$sWhere .= " order by nombre_cliente";
+```
+
+### Pagination
+
+Results are paginated for better performance:
+
+```php ajax/buscar_clientes.php
+$page = (isset($_REQUEST['page']) && !empty($_REQUEST['page'])) ? $_REQUEST['page'] : 1;
+$per_page = 10; // Records per page
+$adjacents = 4; // Gap between pages
+$offset = ($page - 1) * $per_page;
+
+// Count total rows
+$count_query = mysqli_query($con, "SELECT count(*) AS numrows FROM $sTable $sWhere");
+$row = mysqli_fetch_array($count_query);
+$numrows = $row['numrows'];
+$total_pages = ceil($numrows / $per_page);
+
+// Fetch data
+$sql = "SELECT * FROM $sTable $sWhere LIMIT $offset, $per_page";
+$query = mysqli_query($con, $sql);
+```
+
+### Display Results
+
+```php ajax/buscar_clientes.php
+if ($numrows > 0) {
+    echo '<div class="table-responsive">';
+    echo '<table class="table">';
+    echo '<tr class="info">';
+    echo '<th>Nombre</th>';
+    echo '<th>Teléfono</th>';
+    echo '<th>Email</th>';
+    echo '<th>Dirección</th>';
+    echo '<th>Estado</th>';
+    echo '<th>Agregado</th>';
+    echo '<th class="text-right">Acciones</th>';
+    echo '</tr>';
+    
+    while ($row = mysqli_fetch_array($query)) {
+        $id_cliente = $row['id_cliente'];
+        $nombre_cliente = $row['nombre_cliente'];
+        $status_cliente = $row['status_cliente'];
+        $estado = ($status_cliente == 1) ? "Activo" : "Inactivo";
+        $date_added = date('d/m/Y', strtotime($row['date_added']));
+        
+        // Display row with edit/delete buttons
+    }
+    echo '</table>';
+    echo '</div>';
+}
+```
+
+## Client Autocomplete
+
+When creating or editing invoices, clients can be quickly selected using jQuery UI autocomplete:
+
+```php ajax/autocomplete/clientes.php
+if (isset($_GET['term'])) {
+    include("../../config/db.php");
+    include("../../config/conexion.php");
+    $return_arr = array();
+    
+    if ($con) {
+        $fetch = mysqli_query($con, 
+            "SELECT * FROM clientes 
+             WHERE nombre_cliente LIKE '%" . mysqli_real_escape_string($con, $_GET['term']) . "%' 
+             LIMIT 0, 50");
+        
+        while ($row = mysqli_fetch_array($fetch)) {
+            $row_array['value'] = $row['nombre_cliente'];
+            $row_array['id_cliente'] = $row['id_cliente'];
+            $row_array['nombre_cliente'] = $row['nombre_cliente'];
+            $row_array['telefono_cliente'] = $row['telefono_cliente'];
+            $row_array['email_cliente'] = $row['email_cliente'];
+            array_push($return_arr, $row_array);
+        }
+    }
+    
+    mysqli_close($con);
+    echo json_encode($return_arr);
+}
+```
+
+### Autocomplete Integration
+
+In invoice forms (see `editar_factura.php:173-185`):
+
+```javascript
+$("#nombre_cliente").autocomplete({
+    source: "./ajax/autocomplete/clientes.php",
+    minLength: 2,
+    select: function(event, ui) {
+        event.preventDefault();
+        $('#id_cliente').val(ui.item.id_cliente);
+        $('#nombre_cliente').val(ui.item.nombre_cliente);
+        $('#tel1').val(ui.item.telefono_cliente);
+        $('#mail').val(ui.item.email_cliente);
+    }
+});
+```
+
+<Info>
+Autocomplete activates after typing 2 characters and returns up to 50 matching results.
+</Info>
+
+## Client Status Management
+
+Clients have a status field that can be:
+
+- **1**: Active client
+- **0**: Inactive client
+
+This allows you to maintain a record of clients without deleting them from the database.
+
+## Client Deletion
+
+Clients can only be deleted if they have no associated invoices:
+
+```php ajax/buscar_clientes.php
+if (isset($_GET['id'])) {
+    $id_cliente = intval($_GET['id']);
+    $query = mysqli_query($con, "SELECT * FROM facturas WHERE id_cliente='" . $id_cliente . "'");
+    $count = mysqli_num_rows($query);
+    
+    if ($count == 0) {
+        // Safe to delete
+        if ($delete1 = mysqli_query($con, "DELETE FROM clientes WHERE id_cliente='" . $id_cliente . "'")) {
+            echo '<div class="alert alert-success">Datos eliminados exitosamente.</div>';
+        }
+    } else {
+        // Cannot delete - has invoices
+        echo '<div class="alert alert-danger">
+                No se pudo eliminar éste cliente. Existen facturas vinculadas a éste producto.
+              </div>';
+    }
+}
+```
+
+<Warning>
+Clients with existing invoices cannot be deleted to maintain referential integrity. Set them to inactive instead.
+</Warning>
+
+## Client Information Fields
+
+<CardGroup cols={2}>
+  <Card title="Name" icon="user">
+    **Required** - Cliente name (unique)
+  </Card>
+  <Card title="Phone" icon="phone">
+    Contact telephone number
+  </Card>
+  <Card title="Email" icon="envelope">
+    Email address for invoices
+  </Card>
+  <Card title="Address" icon="location-dot">
+    Physical or mailing address
+  </Card>
+  <Card title="Status" icon="toggle-on">
+    Active (1) or Inactive (0)
+  </Card>
+  <Card title="Date Added" icon="calendar">
+    Timestamp of client creation
+  </Card>
+</CardGroup>
+
+## Workflow
+
+<Steps>
+  <Step title="Access Client Management">
+    Navigate to the Clientes page from the main menu
+  </Step>
+  <Step title="Add or Search">
+    Click "Nuevo Cliente" to add a new customer, or use the search box to find existing clients
+  </Step>
+  <Step title="Fill Client Information">
+    Enter name, phone, email, address, and set the status
+  </Step>
+  <Step title="Save">
+    Submit the form - the client is immediately available for invoice creation
+  </Step>
+  <Step title="Use in Invoices">
+    When creating invoices, type the client name and select from autocomplete suggestions
+  </Step>
+</Steps>
+
+## Related Files
+
+- `clientes.php` - Main client management interface
+- `ajax/nuevo_cliente.php` - Create new client endpoint
+- `ajax/editar_cliente.php` - Update client endpoint
+- `ajax/buscar_clientes.php` - Search and list clients
+- `ajax/autocomplete/clientes.php` - Autocomplete search for invoices
+- `modal/registro_clientes.php` - New client modal dialog
+- `modal/editar_clientes.php` - Edit client modal dialog
+- `js/clientes.js` - Client-side logic

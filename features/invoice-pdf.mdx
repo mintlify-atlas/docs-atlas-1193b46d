@@ -1,0 +1,459 @@
+---
+title: 'Invoice PDF Generation'
+description: 'PDF generation system with TCPDF and HTML2PDF in Simple Invoice'
+icon: 'file-pdf'
+---
+
+## Overview
+
+Simple Invoice uses the HTML2PDF library (built on TCPDF) to generate professional PDF invoices with company branding, client information, product line items, and automatic calculations. PDFs are generated on-the-fly when users click the print button.
+
+## PDF Libraries
+
+The system uses two PDF libraries:
+
+- **TCPDF 5.0.002**: Low-level PDF generation library located in `pdf/_tcpdf_5.0.002/`
+- **HTML2PDF**: Wrapper library that converts HTML to PDF using TCPDF, located in `pdf/html2pdf.class.php`
+
+<Info>
+HTML2PDF allows developers to design invoice templates using familiar HTML/CSS, which are then converted to PDF format.
+</Info>
+
+## PDF Generation Entry Point
+
+The main PDF generation file is `pdf/documentos/factura_pdf.php`:
+
+```php pdf/documentos/factura_pdf.php
+session_start();
+if (!isset($_SESSION['user_login_status']) AND $_SESSION['user_login_status'] != 1) {
+    header("location: ../../login.php");
+    exit;
+}
+
+// Connect To Database
+include("../../config/db.php");
+include("../../config/conexion.php");
+include("../../funciones.php");
+
+$session_id = session_id();
+```
+
+### Validation Check
+
+Before generating the PDF, the system ensures products are in the cart:
+
+```php pdf/documentos/factura_pdf.php
+$sql_count = mysqli_query($con, "SELECT * FROM tmp WHERE session_id='" . $session_id . "'");
+$count = mysqli_num_rows($sql_count);
+
+if ($count == 0) {
+    echo "<script>alert('No hay productos agregados a la factura')</script>";
+    echo "<script>window.close();</script>";
+    exit;
+}
+```
+
+## Invoice Parameters
+
+Invoice data is received via GET parameters:
+
+```php pdf/documentos/factura_pdf.php
+// Variables por GET
+$id_cliente = intval($_GET['id_cliente']);
+$id_vendedor = intval($_GET['id_vendedor']);
+$condiciones = mysqli_real_escape_string($con, (strip_tags($_REQUEST['condiciones'], ENT_QUOTES)));
+```
+
+## Invoice Number Generation
+
+The system automatically generates sequential invoice numbers:
+
+```php pdf/documentos/factura_pdf.php
+$sql = mysqli_query($con, 
+    "SELECT LAST_INSERT_ID(numero_factura) as last 
+     FROM facturas 
+     ORDER BY id_factura DESC 
+     LIMIT 0, 1");
+$rw = mysqli_fetch_array($sql);
+$numero_factura = $rw['last'] + 1;
+```
+
+<Note>
+Invoice numbers are auto-incremented from the last invoice in the database.
+</Note>
+
+## HTML Template Processing
+
+The PDF content is generated from an HTML template:
+
+```php pdf/documentos/factura_pdf.php
+$simbolo_moneda = get_row('perfil', 'moneda', 'id_perfil', 1);
+
+// Get the HTML
+ob_start();
+include(dirname('__FILE__') . '/res/factura_html.php');
+$content = ob_get_clean();
+```
+
+## HTML2PDF Initialization
+
+The HTML content is converted to PDF format:
+
+```php pdf/documentos/factura_pdf.php
+try {
+    // Init HTML2PDF
+    $html2pdf = new HTML2PDF('P', 'LETTER', 'es', true, 'UTF-8', array(0, 0, 0, 0));
+    
+    // Display the full page
+    $html2pdf->pdf->SetDisplayMode('fullpage');
+    
+    // Convert
+    $html2pdf->writeHTML($content, isset($_GET['vuehtml']));
+    
+    // Send the PDF
+    $html2pdf->Output('Factura.pdf');
+} catch(HTML2PDF_exception $e) {
+    echo $e;
+    exit;
+}
+```
+
+### PDF Parameters
+
+- **'P'**: Portrait orientation
+- **'LETTER'**: Letter size paper (8.5" x 11")
+- **'es'**: Spanish language
+- **true**: Unicode support
+- **'UTF-8'**: Character encoding
+- **array(0, 0, 0, 0)**: Margins (top, right, bottom, left)
+
+## Invoice HTML Template
+
+The template in `pdf/documentos/res/factura_html.php` defines the PDF layout:
+
+### Template Styling
+
+```html pdf/documentos/res/factura_html.php
+<style type="text/css">
+table { vertical-align: top; }
+tr    { vertical-align: top; }
+td    { vertical-align: top; }
+
+.midnight-blue {
+    background: #2c3e50;
+    padding: 4px 4px 4px;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.silver {
+    background: white;
+    padding: 3px 4px 3px;
+}
+
+.clouds {
+    background: #ecf0f1;
+    padding: 3px 4px 3px;
+}
+
+.border-top { border-top: solid 1px #bdc3c7; }
+.border-left { border-left: solid 1px #bdc3c7; }
+.border-right { border-right: solid 1px #bdc3c7; }
+.border-bottom { border-bottom: solid 1px #bdc3c7; }
+</style>
+```
+
+### Page Configuration
+
+```html pdf/documentos/res/factura_html.php
+<page backtop="15mm" backbottom="15mm" backleft="15mm" backright="15mm" 
+      style="font-size: 12pt; font-family: arial">
+    <page_footer>
+        <table class="page_footer">
+            <tr>
+                <td style="width: 50%; text-align: left">
+                    Página [[page_cu]]/[[page_nb]]
+                </td>
+                <td style="width: 50%; text-align: right">
+                    &copy; <?php echo "obedalvarado.pw "; echo $anio = date('Y'); ?>
+                </td>
+            </tr>
+        </table>
+    </page_footer>
+```
+
+## Company Logo Integration
+
+The invoice header includes company branding:
+
+```php pdf/documentos/res/encabezado_factura.php
+<?php include("encabezado_factura.php"); ?>
+```
+
+This file loads company information from the `perfil` table including:
+- Company logo
+- Company name
+- Address and contact details
+- Tax information
+
+## Client Information Section
+
+```php pdf/documentos/res/factura_html.php
+<table cellspacing="0" style="width: 100%; text-align: left; font-size: 11pt;">
+    <tr>
+        <td style="width:50%;" class='midnight-blue'>FACTURAR A</td>
+    </tr>
+    <tr>
+        <td style="width:50%;">
+            <?php 
+            $sql_cliente = mysqli_query($con, "SELECT * FROM clientes WHERE id_cliente='$id_cliente'");
+            $rw_cliente = mysqli_fetch_array($sql_cliente);
+            echo $rw_cliente['nombre_cliente'];
+            echo "<br>";
+            echo $rw_cliente['direccion_cliente'];
+            echo "<br> Teléfono: ";
+            echo $rw_cliente['telefono_cliente'];
+            echo "<br> Email: ";
+            echo $rw_cliente['email_cliente'];
+            ?>
+        </td>
+    </tr>
+</table>
+```
+
+## Invoice Metadata
+
+```php pdf/documentos/res/factura_html.php
+<table cellspacing="0" style="width: 100%; text-align: left; font-size: 11pt;">
+    <tr>
+        <td style="width:35%;" class='midnight-blue'>VENDEDOR</td>
+        <td style="width:25%;" class='midnight-blue'>FECHA</td>
+        <td style="width:40%;" class='midnight-blue'>FORMA DE PAGO</td>
+    </tr>
+    <tr>
+        <td style="width:35%;">
+            <?php 
+            $sql_user = mysqli_query($con, "SELECT * FROM users WHERE user_id='$id_vendedor'");
+            $rw_user = mysqli_fetch_array($sql_user);
+            echo $rw_user['firstname'] . " " . $rw_user['lastname'];
+            ?>
+        </td>
+        <td style="width:25%;"><?php echo date("d/m/Y"); ?></td>
+        <td style="width:40%;">
+            <?php 
+            if ($condiciones == 1) { echo "Efectivo"; }
+            elseif ($condiciones == 2) { echo "Cheque"; }
+            elseif ($condiciones == 3) { echo "Transferencia bancaria"; }
+            elseif ($condiciones == 4) { echo "Crédito"; }
+            ?>
+        </td>
+    </tr>
+</table>
+```
+
+## Product Line Items Table
+
+```php pdf/documentos/res/factura_html.php
+<table cellspacing="0" style="width: 100%; text-align: left; font-size: 10pt;">
+    <tr>
+        <th style="width: 10%; text-align:center" class='midnight-blue'>CANT.</th>
+        <th style="width: 60%" class='midnight-blue'>DESCRIPCION</th>
+        <th style="width: 15%; text-align: right" class='midnight-blue'>PRECIO UNIT.</th>
+        <th style="width: 15%; text-align: right" class='midnight-blue'>PRECIO TOTAL</th>
+    </tr>
+```
+
+### Product Loop
+
+```php pdf/documentos/res/factura_html.php
+<?php
+$nums = 1;
+$sumador_total = 0;
+$sql = mysqli_query($con, 
+    "SELECT * FROM products, tmp 
+     WHERE products.id_producto = tmp.id_producto 
+     AND tmp.session_id = '" . $session_id . "'");
+
+while ($row = mysqli_fetch_array($sql)) {
+    $id_tmp = $row["id_tmp"];
+    $id_producto = $row["id_producto"];
+    $codigo_producto = $row['codigo_producto'];
+    $cantidad = $row['cantidad_tmp'];
+    $nombre_producto = $row['nombre_producto'];
+    $precio_venta = $row['precio_tmp'];
+    
+    // Format prices
+    $precio_venta_f = number_format($precio_venta, 2);
+    $precio_venta_r = str_replace(",", "", $precio_venta_f);
+    $precio_total = $precio_venta_r * $cantidad;
+    $precio_total_f = number_format($precio_total, 2);
+    $precio_total_r = str_replace(",", "", $precio_total_f);
+    $sumador_total += $precio_total_r;
+    
+    // Alternate row colors
+    $clase = ($nums % 2 == 0) ? "clouds" : "silver";
+    ?>
+    <tr>
+        <td class='<?php echo $clase; ?>' style="width: 10%; text-align: center">
+            <?php echo $cantidad; ?>
+        </td>
+        <td class='<?php echo $clase; ?>' style="width: 60%; text-align: left">
+            <?php echo $nombre_producto; ?>
+        </td>
+        <td class='<?php echo $clase; ?>' style="width: 15%; text-align: right">
+            <?php echo $precio_venta_f; ?>
+        </td>
+        <td class='<?php echo $clase; ?>' style="width: 15%; text-align: right">
+            <?php echo $precio_total_f; ?>
+        </td>
+    </tr>
+    <?php 
+    // Insert into permanent detail table
+    $insert_detail = mysqli_query($con, 
+        "INSERT INTO detalle_factura 
+         VALUES ('', '$numero_factura', '$id_producto', '$cantidad', '$precio_venta_r')");
+    $nums++;
+}
+?>
+```
+
+<Info>
+Product line items alternate between silver and cloud-colored rows for better readability.
+</Info>
+
+## Invoice Totals
+
+```php pdf/documentos/res/factura_html.php
+<?php
+$impuesto = get_row('perfil', 'impuesto', 'id_perfil', 1);
+$subtotal = number_format($sumador_total, 2, '.', '');
+$total_iva = ($subtotal * $impuesto) / 100;
+$total_iva = number_format($total_iva, 2, '.', '');
+$total_factura = $subtotal + $total_iva;
+?>
+
+<tr>
+    <td colspan="3" style="width: 85%; text-align: right;">
+        SUBTOTAL <?php echo $simbolo_moneda; ?>
+    </td>
+    <td style="width: 15%; text-align: right;">
+        <?php echo number_format($subtotal, 2); ?>
+    </td>
+</tr>
+<tr>
+    <td colspan="3" style="width: 85%; text-align: right;">
+        IVA (<?php echo $impuesto; ?>)% <?php echo $simbolo_moneda; ?>
+    </td>
+    <td style="width: 15%; text-align: right;">
+        <?php echo number_format($total_iva, 2); ?>
+    </td>
+</tr>
+<tr>
+    <td colspan="3" style="width: 85%; text-align: right;">
+        TOTAL <?php echo $simbolo_moneda; ?>
+    </td>
+    <td style="width: 15%; text-align: right;">
+        <?php echo number_format($total_factura, 2); ?>
+    </td>
+</tr>
+```
+
+## Finalizing the Invoice
+
+After generating the PDF, the invoice is saved to the database:
+
+```php pdf/documentos/res/factura_html.php
+<?php
+$date = date("Y-m-d H:i:s");
+$insert = mysqli_query($con, 
+    "INSERT INTO facturas 
+     VALUES (NULL, '$numero_factura', '$date', '$id_cliente', '$id_vendedor', 
+             '$condiciones', '$total_factura', '1')");
+
+// Clear temporary items
+$delete = mysqli_query($con, "DELETE FROM tmp WHERE session_id='" . $session_id . "'");
+?>
+```
+
+<Warning>
+Once the PDF is generated, temporary items are deleted from the `tmp` table. Do not refresh the PDF generation page as it will create duplicate invoices.
+</Warning>
+
+## Print Functionality
+
+The print function is triggered from the invoice edit page:
+
+```php editar_factura.php
+<button type="button" class="btn btn-default" onclick="imprimir_factura('<?php echo $id_factura; ?>')">
+    <span class="glyphicon glyphicon-print"></span> Imprimir
+</button>
+```
+
+The `imprimir_factura()` function (in `js/VentanaCentrada.js`) opens a popup window with the PDF.
+
+## PDF Features
+
+<CardGroup cols={2}>
+  <Card title="Company Logo" icon="image">
+    Displays company logo from profile settings
+  </Card>
+  <Card title="Client Information" icon="address-card">
+    Full client details including address and contact
+  </Card>
+  <Card title="Product Line Items" icon="list">
+    Detailed table with quantities, descriptions, and prices
+  </Card>
+  <Card title="Automatic Calculations" icon="calculator">
+    Subtotal, tax, and total computed automatically
+  </Card>
+  <Card title="Payment Method" icon="credit-card">
+    Displays selected payment terms on invoice
+  </Card>
+  <Card title="Professional Styling" icon="palette">
+    Clean, branded design with alternating row colors
+  </Card>
+</CardGroup>
+
+## PDF Generation Workflow
+
+<Steps>
+  <Step title="Add Products">
+    Products are added to the `tmp` table with the user's session ID
+  </Step>
+  <Step title="Click Print">
+    User clicks the print button on the invoice form
+  </Step>
+  <Step title="Validate Data">
+    System checks that products exist and all required fields are filled
+  </Step>
+  <Step title="Generate HTML">
+    Invoice template is populated with client, vendor, and product data
+  </Step>
+  <Step title="Convert to PDF">
+    HTML2PDF converts the HTML template to a PDF document
+  </Step>
+  <Step title="Save to Database">
+    Invoice header and line items are permanently saved to the database
+  </Step>
+  <Step title="Clear Session">
+    Temporary items are deleted from the `tmp` table
+  </Step>
+  <Step title="Display PDF">
+    PDF is sent to the browser for viewing, download, or printing
+  </Step>
+</Steps>
+
+## Related Files
+
+- `pdf/documentos/factura_pdf.php` - Main PDF generation entry point
+- `pdf/documentos/res/factura_html.php` - Invoice HTML template
+- `pdf/documentos/res/encabezado_factura.php` - Company header template
+- `pdf/html2pdf.class.php` - HTML to PDF conversion library
+- `pdf/_tcpdf_5.0.002/tcpdf.php` - TCPDF core library
+- `js/VentanaCentrada.js` - Popup window helper
+- `funciones.php` - Helper functions like `get_row()`
+
+<Note>
+The PDF system uses output buffering (`ob_start()` and `ob_get_clean()`) to capture the HTML template output before conversion to PDF.
+</Note>

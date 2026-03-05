@@ -1,97 +1,236 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: Simple Invoice Documentation
+mode: custom
 ---
 
-## Setting up
+<div className="relative overflow-hidden dark:bg-[#0f1117] bg-white">
+  {/* Hero Section */}
+  <div className="relative py-20 px-4 sm:px-6 lg:px-8" style={{ background: 'linear-gradient(135deg, #089ddb 0%, #0677a3 100%)' }}>
+    <div className="max-w-7xl mx-auto">
+      <div className="text-center">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6">
+          Welcome to Simple Invoice
+        </h1>
+        <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto mb-8">
+          A complete invoice management system for businesses. Manage clients, products, and generate professional invoices with ease.
+        </p>
+        <div className="flex flex-wrap justify-center gap-4">
+          <a
+            href="/quickstart"
+            className="inline-flex items-center px-6 py-3 rounded-full text-base font-semibold text-[#089ddb] bg-white hover:bg-gray-100 transition-colors no-underline"
+          >
+            Get Started
+            <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+          <a
+            href="/api/clients"
+            className="inline-flex items-center px-6 py-3 rounded-full text-base font-semibold text-white border-2 border-white/30 bg-white/10 hover:bg-white/20 transition-colors no-underline"
+          >
+            API Reference
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
 
-Get your documentation site up and running in minutes.
+  {/* Quick Start Section */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-3">
+      Quick Start
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+      Get Simple Invoice up and running in minutes with these simple steps.
+    </p>
+    
+    <Steps>
+      <Step title="Download and Extract">
+        Download the Simple Invoice source files and extract them to your web server directory.
+        
+        ```bash
+        cd /xampp/htdocs
+        unzip simple-invoice.zip
+        ```
+      </Step>
+      
+      <Step title="Create Database">
+        Create a new MySQL database and import the provided SQL schema.
+        
+        ```bash
+        mysql -u root -p
+        CREATE DATABASE simple_invoice;
+        USE simple_invoice;
+        SOURCE simple_invoice.sql;
+        ```
+        
+        <Accordion title="Database Schema Preview">
+          The database includes tables for users, clients, products, invoices, invoice details, company profile, and multi-currency support.
+        </Accordion>
+      </Step>
+      
+      <Step title="Configure Database Connection">
+        Edit the database configuration file at `config/db.php` with your credentials.
+        
+        ```php config/db.php
+        <?php
+        define('DB_HOST', 'localhost');
+        define('DB_USER', 'your_username');
+        define('DB_PASS', 'your_password');
+        define('DB_NAME', 'simple_invoice');
+        ?>
+        ```
+      </Step>
+      
+      <Step title="Access the Application">
+        Open your browser and navigate to the application. Log in with the default credentials.
+        
+        <Note>
+          **Default Login:** Username: `admin` | Password: `admin`
+          
+          Make sure to change these credentials after your first login for security.
+        </Note>
+      </Step>
+    </Steps>
+  </div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+  {/* Features Grid */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-3">
+      Core Features
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+      Everything you need to manage your invoicing workflow.
+    </p>
+    
+    <CardGroup cols={2}>
+      <Card title="User Management" icon="users" href="/features/user-management">
+        Secure authentication system with role-based access control for managing team members.
+      </Card>
+      <Card title="Client Database" icon="address-book" href="/features/client-management">
+        Maintain a comprehensive database of clients with contact information and history.
+      </Card>
+      <Card title="Product Catalog" icon="box" href="/features/product-management">
+        Organize your products and services with pricing and availability tracking.
+      </Card>
+      <Card title="Invoice Creation" icon="file-invoice" href="/features/invoice-creation">
+        Create professional invoices with multiple payment options and automatic calculations.
+      </Card>
+      <Card title="PDF Generation" icon="file-pdf" href="/features/invoice-pdf">
+        Generate print-ready PDF invoices with your company branding and logo.
+      </Card>
+      <Card title="Multi-Currency" icon="dollar-sign" href="/configuration/currency">
+        Support for 32+ currencies with customizable symbols and formatting.
+      </Card>
+    </CardGroup>
+  </div>
 
-## Make it yours
+  {/* API Reference Section */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-3">
+      API Reference
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+      Explore the AJAX endpoints that power Simple Invoice.
+    </p>
+    
+    <CardGroup cols={2}>
+      <Card title="Client Endpoints" icon="user" href="/api/clients">
+        Create, update, search, and manage client records via AJAX.
+      </Card>
+      <Card title="Product Endpoints" icon="cube" href="/api/products">
+        Manage your product catalog through RESTful endpoints.
+      </Card>
+      <Card title="Invoice Endpoints" icon="receipt" href="/api/invoices">
+        Full invoice lifecycle management including creation and editing.
+      </Card>
+      <Card title="Database Schema" icon="database" href="/api/database-schema">
+        Complete database structure documentation with relationships.
+      </Card>
+    </CardGroup>
+  </div>
 
-Design a docs site that looks great and empowers your users.
+  {/* Configuration Section */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-3">
+      Configuration & Deployment
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+      Set up your company profile and deploy to production.
+    </p>
+    
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <a
+        href="/configuration/company-profile"
+        className="group block rounded-2xl border dark:border-[#27272a] border-gray-200 overflow-hidden dark:hover:border-[#089ddb] hover:border-[#089ddb] transition-colors no-underline"
+      >
+        <div className="p-6">
+          <h3 className="text-base font-semibold dark:text-white text-gray-900 mb-2">
+            Company Profile
+          </h3>
+          <p className="text-sm dark:text-gray-400 text-gray-600 mb-3">
+            Customize your company information, logo, and tax settings.
+          </p>
+          <span className="text-sm dark:text-gray-400 text-gray-600 dark:group-hover:text-[#089ddb] group-hover:text-[#089ddb] transition-colors">
+            Configure settings →
+          </span>
+        </div>
+      </a>
+      
+      <a
+        href="/deployment/docker"
+        className="group block rounded-2xl border dark:border-[#27272a] border-gray-200 overflow-hidden dark:hover:border-[#089ddb] hover:border-[#089ddb] transition-colors no-underline"
+      >
+        <div className="p-6">
+          <h3 className="text-base font-semibold dark:text-white text-gray-900 mb-2">
+            Docker Deployment
+          </h3>
+          <p className="text-sm dark:text-gray-400 text-gray-600 mb-3">
+            Deploy using Docker for containerized environments.
+          </p>
+          <span className="text-sm dark:text-gray-400 text-gray-600 dark:group-hover:text-[#089ddb] group-hover:text-[#089ddb] transition-colors">
+            View guide →
+          </span>
+        </div>
+      </a>
+      
+      <a
+        href="/deployment/production"
+        className="group block rounded-2xl border dark:border-[#27272a] border-gray-200 overflow-hidden dark:hover:border-[#089ddb] hover:border-[#089ddb] transition-colors no-underline"
+      >
+        <div className="p-6">
+          <h3 className="text-base font-semibold dark:text-white text-gray-900 mb-2">
+            Production Setup
+          </h3>
+          <p className="text-sm dark:text-gray-400 text-gray-600 mb-3">
+            Best practices for deploying to production servers.
+          </p>
+          <span className="text-sm dark:text-gray-400 text-gray-600 dark:group-hover:text-[#089ddb] group-hover:text-[#089ddb] transition-colors">
+            Learn more →
+          </span>
+        </div>
+      </a>
+    </div>
+  </div>
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
-
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+  {/* Closing CTA */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <div className="rounded-2xl dark:bg-[#1a1d27] bg-gray-50 border dark:border-[#27272a] border-gray-200 p-8 sm:p-12 text-center">
+      <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+        Ready to streamline your invoicing?
+      </h2>
+      <p className="text-base dark:text-gray-400 text-gray-600 max-w-2xl mx-auto mb-6">
+        Get started with Simple Invoice today and take control of your business finances with professional invoice management.
+      </p>
+      <a
+        href="/installation"
+        className="inline-flex items-center px-6 py-3 rounded-full text-base font-semibold text-white bg-[#089ddb] hover:bg-[#0677a3] transition-colors no-underline"
+      >
+        Start Installation
+        <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </a>
+    </div>
+  </div>
+</div>

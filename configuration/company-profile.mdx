@@ -1,0 +1,289 @@
+---
+title: Company Profile
+description: Configure your company information, tax settings, and logo
+icon: building
+---
+
+## Overview
+
+The company profile contains your business information that appears on invoices and throughout the Simple Invoice system. All settings are stored in the `perfil` table.
+
+## Profile Configuration
+
+Access the company profile by navigating to the configuration page (`perfil.php`). The profile is identified by `id_perfil=1` in the database.
+
+```php
+$query_empresa=mysqli_query($con,"select * from perfil where id_perfil=1");
+$row=mysqli_fetch_array($query_empresa);
+```
+
+## Database Schema
+
+The `perfil` table contains the following fields:
+
+```sql
+CREATE TABLE IF NOT EXISTS `perfil` (
+  `id_perfil` int(11) NOT NULL,
+  `nombre_empresa` varchar(150) NOT NULL,
+  `direccion` varchar(255) NOT NULL,
+  `ciudad` varchar(100) NOT NULL,
+  `codigo_postal` varchar(100) NOT NULL,
+  `estado` varchar(100) NOT NULL,
+  `telefono` varchar(20) NOT NULL,
+  `email` varchar(64) NOT NULL,
+  `impuesto` int(2) NOT NULL,
+  `moneda` varchar(6) NOT NULL,
+  `logo_url` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+```
+
+## Configuration Fields
+
+### Company Information
+
+<ParamField path="nombre_empresa" type="string" required>
+  Company name (up to 150 characters)
+  
+  ```php
+  <input type="text" name="nombre_empresa" value="<?php echo $row['nombre_empresa']?>" required>
+  ```
+</ParamField>
+
+<ParamField path="telefono" type="string" required>
+  Company phone number (up to 20 characters)
+  
+  ```php
+  <input type="text" name="telefono" value="<?php echo $row['telefono']?>" required>
+  ```
+</ParamField>
+
+<ParamField path="email" type="string">
+  Company email address (up to 64 characters)
+  
+  ```php
+  <input type="email" name="email" value="<?php echo $row['email']?>">
+  ```
+</ParamField>
+
+### Address Information
+
+<ParamField path="direccion" type="string" required>
+  Street address (up to 255 characters)
+  
+  ```php
+  <input type="text" name="direccion" value="<?php echo $row['direccion']?>" required>
+  ```
+</ParamField>
+
+<ParamField path="ciudad" type="string" required>
+  City name (up to 100 characters)
+  
+  ```php
+  <input type="text" name="ciudad" value="<?php echo $row['ciudad']?>" required>
+  ```
+</ParamField>
+
+<ParamField path="estado" type="string">
+  State, region, or province (up to 100 characters)
+  
+  ```php
+  <input type="text" name="estado" value="<?php echo $row['estado']?>">
+  ```
+</ParamField>
+
+<ParamField path="codigo_postal" type="string">
+  Postal or ZIP code (up to 100 characters)
+  
+  ```php
+  <input type="text" name="codigo_postal" value="<?php echo $row['codigo_postal']?>">
+  ```
+</ParamField>
+
+### Financial Settings
+
+<ParamField path="impuesto" type="integer" required>
+  Tax/IVA percentage (2 digits max)
+  
+  ```php
+  <input type="text" name="impuesto" value="<?php echo $row['impuesto']?>" required>
+  ```
+  
+  <Tip>Enter the tax percentage as a whole number. For example, enter `13` for 13% tax.</Tip>
+</ParamField>
+
+<ParamField path="moneda" type="string" required>
+  Currency symbol (up to 6 characters)
+  
+  Selected from the `currencies` table:
+  
+  ```php
+  <select name="moneda" required>
+    <?php 
+      $sql="select name, symbol from currencies group by symbol order by name";
+      $query=mysqli_query($con,$sql);
+      while($rw=mysqli_fetch_array($query)){
+        $simbolo=$rw['symbol'];
+        $moneda=$rw['name'];
+        if ($row['moneda']==$simbolo){
+          $selected="selected";
+        } else {
+          $selected="";
+        }
+        ?>
+        <option value="<?php echo $simbolo;?>" <?php echo $selected;?>>
+          <?php echo ($simbolo);?>
+        </option>
+        <?php
+      }
+    ?>
+  </select>
+  ```
+  
+  See [Currency Configuration](/configuration/currency) for available currencies.
+</ParamField>
+
+### Company Logo
+
+<ParamField path="logo_url" type="string">
+  Path to company logo image (up to 255 characters)
+  
+  The logo is displayed on invoices and the profile page:
+  
+  ```php
+  <img class="img-responsive" src="<?php echo $row['logo_url'];?>" alt="Logo">
+  ```
+</ParamField>
+
+## Logo Upload
+
+The system supports logo uploads via AJAX using the file upload input:
+
+```html
+<input class='filestyle' data-buttonText="Logo" type="file" 
+       name="imagefile" id="imagefile" onchange="upload_image();">
+```
+
+### Upload Implementation
+
+```javascript
+function upload_image(){
+  var inputFileImage = document.getElementById("imagefile");
+  var file = inputFileImage.files[0];
+  if( (typeof file === "object") && (file !== null) )
+  {
+    $("#load_img").text('Cargando...');	
+    var data = new FormData();
+    data.append('imagefile',file);
+    
+    $.ajax({
+      url: "ajax/imagen_ajax.php",
+      type: "POST",
+      data: data,
+      contentType: false,
+      cache: false,
+      processData:false,
+      success: function(data) {
+        $("#load_img").html(data);
+      }
+    });	
+  }
+}
+```
+
+<Note>
+  Logo uploads are processed by `ajax/imagen_ajax.php` and stored in the `img/` directory.
+</Note>
+
+## Updating Profile
+
+The profile form submits data via AJAX to `ajax/editar_perfil.php`:
+
+```javascript
+$("#perfil").submit(function(event) {
+  $('.guardar_datos').attr("disabled", true);
+  
+  var parametros = $(this).serialize();
+  $.ajax({
+    type: "POST",
+    url: "ajax/editar_perfil.php",
+    data: parametros,
+    beforeSend: function(objeto){
+      $("#resultados_ajax").html("Mensaje: Cargando...");
+    },
+    success: function(datos){
+      $("#resultados_ajax").html(datos);
+      $('.guardar_datos').attr("disabled", false);
+    }
+  });
+  event.preventDefault();
+})
+```
+
+## Example Data
+
+Here's an example of a complete company profile:
+
+```sql
+INSERT INTO `perfil` VALUES (
+  1, 
+  'SISTEMAS WEB LA', 
+  'Colonias Los Andes  #250', 
+  'Moncagua', 
+  '3301', 
+  'San Miguel', 
+  '+(503) 2682-555', 
+  'info@obedalvarado.pw', 
+  13, 
+  '$', 
+  'img/1478792451_google30.png'
+);
+```
+
+<CardGroup cols={2}>
+  <Card title="Company Name" icon="building">
+    SISTEMAS WEB LA
+  </Card>
+  <Card title="Tax Rate" icon="percent">
+    13%
+  </Card>
+  <Card title="Currency" icon="dollar-sign">
+    $ (US Dollar)
+  </Card>
+  <Card title="Location" icon="location-dot">
+    Moncagua, San Miguel
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Logo Requirements">
+    - Use PNG or JPG format
+    - Recommended size: 200x200 pixels or larger
+    - Keep file size under 1MB for optimal performance
+    - Logo should have a transparent background for best results
+  </Accordion>
+  
+  <Accordion title="Tax Configuration">
+    - Enter the tax percentage as a whole number (e.g., 13 for 13%)
+    - The system stores this as an integer (2 digits max)
+    - Tax is applied to invoices automatically
+    - Update this value when tax rates change
+  </Accordion>
+  
+  <Accordion title="Required vs Optional Fields">
+    **Required fields:**
+    - nombre_empresa (Company name)
+    - telefono (Phone)
+    - direccion (Address)
+    - ciudad (City)
+    - impuesto (Tax rate)
+    - moneda (Currency)
+    
+    **Optional fields:**
+    - email
+    - estado (State/Region)
+    - codigo_postal (Postal code)
+    - logo_url
+  </Accordion>
+</AccordionGroup>
